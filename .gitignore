@@ -35,3 +35,6 @@ Thumbs.db
 application-local.yml
 application-*-local.yml
 src/main/resources/application-local.yml
+
+###CLAUDE###
+CLAUDE.md
