@@ -56,13 +56,16 @@ public class OrderItem {
         this.productId = productId;
         this.storeId = storeId;
         this.orderNo = orderNo;
-        this.qty = qty != null ? qty : 1;
+        int resolvedQty = qty != null ? qty : 1;
+        if (resolvedQty < 1) {
+            throw new IllegalArgumentException("qty는 1 이상이어야 합니다.");
+        }
+        this.qty = resolvedQty;
         this.paidPrice = paidPrice;
         this.orderedAt = orderedAt;
         this.seller = seller;
     }
 
-    // 제품 수령 처리
     public void markReceived() {
         this.receivedAt = LocalDateTime.now();
     }

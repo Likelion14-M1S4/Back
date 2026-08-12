@@ -92,15 +92,17 @@ public class Product {
         this.material = material;
         this.atelier = atelier;
         this.region = region;
-        this.status = status;
+        this.status = status != null ? status : ProductStatus.DISPLAY;
         this.color = color;
         this.size = size;
         this.category = category;
         this.nfcUid = nfcUid;
     }
 
-    // 직원 판매 처리 - 진열품을 판매됨으로 전환
     public void markSold() {
+        if (this.status == ProductStatus.SOLD) {
+            throw new IllegalStateException("이미 판매된 상품입니다.");
+        }
         this.status = ProductStatus.SOLD;
         this.soldAt = LocalDateTime.now();
     }

@@ -24,15 +24,12 @@ public class StoryScene {
     @Column(name = "story_id", nullable = false)
     private Long storyId;
 
-    // 장면 순서
     @Column(name = "scene_order", nullable = false)
     private Integer sceneOrder;
 
-    // 장면 이미지
     @Column(name = "img_url", length = 500)
     private String imgUrl;
 
-    // 장면 텍스트
     @Column(columnDefinition = "TEXT")
     private String content;
 

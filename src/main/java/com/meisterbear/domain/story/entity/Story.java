@@ -27,7 +27,6 @@ public class Story {
     @Column(nullable = false, length = 255)
     private String title;
 
-    // 1: 잠김, 0: 열림
     @Column(name = "is_locked", nullable = false)
     private boolean locked;
 

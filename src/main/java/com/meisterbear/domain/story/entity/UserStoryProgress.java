@@ -28,7 +28,6 @@ public class UserStoryProgress {
     @Column(name = "story_id", nullable = false)
     private Long storyId;
 
-    // 유저가 스토리 읽음 여부
     @Column(name = "is_done", nullable = false)
     private boolean done;
 

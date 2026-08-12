@@ -34,7 +34,6 @@ public class CharmReceipt {
     @Column(name = "product_id", nullable = false)
     private Long productId;
 
-    // 자격당 고유한 4자리
     @Column(name = "receipt_no", nullable = false, unique = true, length = 4)
     private String receiptNo;
 
@@ -59,6 +58,9 @@ public class CharmReceipt {
 
     @Builder
     private CharmReceipt(Long charmId, Long userId, Long productId, String receiptNo, String season) {
+        if (receiptNo == null || !receiptNo.matches("[0-9]{4}")) {
+            throw new IllegalArgumentException("receiptNo는 숫자 4자리여야 합니다.");
+        }
         this.charmId = charmId;
         this.userId = userId;
         this.productId = productId;
@@ -67,7 +69,6 @@ public class CharmReceipt {
         this.season = season;
     }
 
-    // 직원 수령 처리 완료
     public void complete() {
         this.status = CharmReceiptStatus.COMPLETED;
         this.completedAt = LocalDateTime.now();

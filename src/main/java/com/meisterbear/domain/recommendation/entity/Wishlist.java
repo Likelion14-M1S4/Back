@@ -40,6 +40,9 @@ public class Wishlist {
 
     @Builder
     private Wishlist(Long userId, Long productId, Long charmId) {
+        if ((productId == null) == (charmId == null)) {
+            throw new IllegalArgumentException("productId와 charmId 중 정확히 하나만 지정해야 합니다.");
+        }
         this.userId = userId;
         this.productId = productId;
         this.charmId = charmId;

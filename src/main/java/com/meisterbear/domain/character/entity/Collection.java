@@ -46,13 +46,17 @@ public class Collection {
         this.status = status != null ? status : CollectionStatus.LOCKED;
     }
 
-    // 구매 직후 - 컬렉션 추가 가능 상태로 전환
     public void preview() {
+        if (this.status != CollectionStatus.LOCKED) {
+            throw new IllegalStateException("LOCKED 상태에서만 PREVIEW로 전환할 수 있습니다.");
+        }
         this.status = CollectionStatus.PREVIEW;
     }
 
-    // 컬렉션 추가 버튼 클릭 - 소유 확정
     public void own() {
+        if (this.status != CollectionStatus.PREVIEW) {
+            throw new IllegalStateException("PREVIEW 상태에서만 OWNED로 전환할 수 있습니다.");
+        }
         this.status = CollectionStatus.OWNED;
     }
 }

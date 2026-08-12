@@ -36,6 +36,12 @@ public class Warranty {
 
     @Builder
     private Warranty(Long orderItemId, String serialNo, LocalDate issuedAt, LocalDate expiresAt) {
+        if (issuedAt == null) {
+            throw new IllegalArgumentException("issuedAt은 필수입니다.");
+        }
+        if (expiresAt != null && expiresAt.isBefore(issuedAt)) {
+            throw new IllegalArgumentException("expiresAt은 issuedAt 이후여야 합니다.");
+        }
         this.orderItemId = orderItemId;
         this.serialNo = serialNo;
         this.issuedAt = issuedAt;
