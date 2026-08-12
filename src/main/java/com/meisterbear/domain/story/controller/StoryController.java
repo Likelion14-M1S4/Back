@@ -2,6 +2,7 @@ package com.meisterbear.domain.story.controller;
 
 import com.meisterbear.domain.story.dto.request.SelectStoryChoiceRequest;
 import com.meisterbear.domain.story.dto.response.StoryChoiceSelectResponse;
+import com.meisterbear.domain.story.dto.response.StoryCompleteResponse;
 import com.meisterbear.domain.story.dto.response.StoryDetailResponse;
 import com.meisterbear.domain.story.dto.response.StoryListResponse;
 import com.meisterbear.domain.story.service.StoryService;
@@ -233,5 +234,70 @@ public class StoryController {
         StoryChoiceSelectResponse response = storyService.selectChoice(userId, storyId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.success("선택지 저장 성공", response));
+    }
+
+    @Operation(
+            summary = "챕터 완주 처리",
+            description = "user_story_progress.is_done을 true로 갱신하고 다음 챕터를 해금한다. "
+                    + "시즌 내 모든 챕터가 완주되면 isAllCompleted가 true로 내려간다 "
+                    + "(참 수령 자격 발급 자체는 이 API 책임이 아니며, 참 도메인 API에서 이 완주 여부를 조회해 처리한다).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "챕터 완주 처리 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "완주 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "챕터 완주 처리 성공",
+                                      "data": {
+                                        "isDone": true,
+                                        "isAllCompleted": true,
+                                        "nextStoryId": null,
+                                        "productId": 1
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "409", description = "이미 완주한 챕터",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "이미 완주함", value = """
+                                    {
+                                      "success": false,
+                                      "code": "STORY409",
+                                      "message": "이미 완주한 챕터입니다.",
+                                      "data": null
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "스토리 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "스토리 없음", value = """
+                                    {
+                                      "success": false,
+                                      "code": "STORY404",
+                                      "message": "해당 스토리를 찾을 수 없습니다.",
+                                      "data": null
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "인증 실패", value = """
+                                    {
+                                      "success": false,
+                                      "code": "G006",
+                                      "message": "인증이 필요합니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @PostMapping("/{storyId}/complete")
+    public BaseResponse<StoryCompleteResponse> completeStory(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "완주할 스토리 ID", example = "1") @PathVariable Long storyId) {
+        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        StoryCompleteResponse response = storyService.completeStory(userId, storyId);
+        return BaseResponse.success("챕터 완주 처리 성공", response);
     }
 }

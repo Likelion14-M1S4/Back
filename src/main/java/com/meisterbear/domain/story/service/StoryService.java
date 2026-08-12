@@ -1,12 +1,15 @@
 package com.meisterbear.domain.story.service;
 
+import com.meisterbear.domain.character.entity.Character;
 import com.meisterbear.domain.character.entity.Collection;
+import com.meisterbear.domain.character.repository.CharacterRepository;
 import com.meisterbear.domain.character.repository.CollectionRepository;
 import com.meisterbear.domain.story.dto.request.SelectStoryChoiceRequest;
 import com.meisterbear.domain.story.dto.response.CurrentSeasonResponse;
 import com.meisterbear.domain.story.dto.response.PastSeasonResponse;
 import com.meisterbear.domain.story.dto.response.StoryChoiceResponse;
 import com.meisterbear.domain.story.dto.response.StoryChoiceSelectResponse;
+import com.meisterbear.domain.story.dto.response.StoryCompleteResponse;
 import com.meisterbear.domain.story.dto.response.StoryDetailResponse;
 import com.meisterbear.domain.story.dto.response.StoryListResponse;
 import com.meisterbear.domain.story.dto.response.StoryProgressResponse;
@@ -50,6 +53,7 @@ public class StoryService {
     private static final Pattern SEASON_PATTERN = Pattern.compile("^(SS|AW)(\\d{4})$");
 
     private final CollectionRepository collectionRepository;
+    private final CharacterRepository characterRepository;
     private final StoryRepository storyRepository;
     private final StorySceneRepository storySceneRepository;
     private final StoryQuestionRepository storyQuestionRepository;
@@ -196,6 +200,57 @@ public class StoryService {
                 .userChoiceId(userChoice.getId())
                 .tagName(choice.getTagName())
                 .build();
+    }
+
+    @Transactional
+    public StoryCompleteResponse completeStory(Long userId, Long storyId) {
+        Story story = storyRepository.findById(storyId)
+                .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
+
+        UserStoryProgress progress = userStoryProgressRepository.findByUserIdAndStoryId(userId, storyId)
+                .orElseGet(() -> UserStoryProgress.builder().userId(userId).storyId(storyId).build());
+        if (progress.isDone()) {
+            throw new CustomException(StoryErrorCode.ALREADY_COMPLETED);
+        }
+        progress.complete();
+        userStoryProgressRepository.save(progress);
+
+        Long characterId = story.getCharacterId();
+        String season = story.getSeason();
+
+        Optional<Story> nextStory = storyRepository.findByCharacterIdAndSeasonAndUnlockOrder(
+                characterId, season, story.getUnlockOrder() + 1);
+        nextStory.ifPresent(next -> {
+            next.unlock();
+            storyRepository.save(next);
+        });
+
+        boolean isAllCompleted = isSeasonCompleted(userId, characterId, season);
+
+        Character character = characterRepository.findById(characterId)
+                .orElseThrow(() -> new IllegalStateException("캐릭터를 찾을 수 없습니다. characterId=" + characterId));
+
+        log.info("[StoryService] 챕터 완주 처리 완료 - userId={}, storyId={}, isAllCompleted={}",
+                userId, storyId, isAllCompleted);
+        return StoryCompleteResponse.builder()
+                .isDone(true)
+                .isAllCompleted(isAllCompleted)
+                .nextStoryId(nextStory.map(Story::getId).orElse(null))
+                .productId(character.getProductId())
+                .build();
+    }
+
+    private boolean isSeasonCompleted(Long userId, Long characterId, String season) {
+        List<Story> seasonStories = storyRepository.findByCharacterIdAndSeason(characterId, season);
+        List<Long> storyIds = seasonStories.stream().map(Story::getId).toList();
+        Map<Long, UserStoryProgress> progressByStoryId = userStoryProgressRepository
+                .findByUserIdAndStoryIdIn(userId, storyIds).stream()
+                .collect(Collectors.toMap(UserStoryProgress::getStoryId, progress -> progress));
+        return seasonStories.stream()
+                .allMatch(s -> {
+                    UserStoryProgress p = progressByStoryId.get(s.getId());
+                    return p != null && p.isDone();
+                });
     }
 
     private StorySceneResponse toSceneResponse(StoryScene scene) {
