@@ -1,4 +1,5 @@
 package com.meisterbear.domain.charm.entity;
 
-public class CharmReceiptStatus {
+public enum CharmReceiptStatus {
+    SELECTED, COMPLETED
 }
