@@ -186,7 +186,7 @@ public class StoryController {
 
     @Operation(
             summary = "스토리 선택지 선택",
-            description = "선택 결과를 user_choice에 저장한다.")
+            description = "선택 결과를 user_choice에 저장한다. 잠긴 챕터에 대한 선택지 저장은 403으로 거부한다.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "선택지 저장 성공",
                     content = @Content(mediaType = "application/json",
@@ -210,6 +210,28 @@ public class StoryController {
                                       "success": false,
                                       "code": "STORY400",
                                       "message": "유효하지 않은 선택지입니다.",
+                                      "data": null
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "403", description = "잠긴 챕터",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "잠긴 챕터", value = """
+                                    {
+                                      "success": false,
+                                      "code": "STORY403",
+                                      "message": "잠긴 챕터입니다.",
+                                      "data": null
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "스토리 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "스토리 없음", value = """
+                                    {
+                                      "success": false,
+                                      "code": "STORY404",
+                                      "message": "해당 스토리를 찾을 수 없습니다.",
                                       "data": null
                                     }
                                     """))),
@@ -240,7 +262,8 @@ public class StoryController {
             summary = "챕터 완주 처리",
             description = "user_story_progress.is_done을 true로 갱신하고 다음 챕터를 해금한다. "
                     + "시즌 내 모든 챕터가 완주되면 isAllCompleted가 true로 내려간다 "
-                    + "(참 수령 자격 발급 자체는 이 API 책임이 아니며, 참 도메인 API에서 이 완주 여부를 조회해 처리한다).")
+                    + "(참 수령 자격 발급 자체는 이 API 책임이 아니며, 참 도메인 API에서 이 완주 여부를 조회해 처리한다). "
+                    + "잠긴 챕터를 완주 처리하려 하면 403으로 거부한다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "챕터 완주 처리 성공",
                     content = @Content(mediaType = "application/json",
@@ -256,6 +279,17 @@ public class StoryController {
                                         "nextStoryId": null,
                                         "productId": 1
                                       }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "403", description = "잠긴 챕터",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "잠긴 챕터", value = """
+                                    {
+                                      "success": false,
+                                      "code": "STORY403",
+                                      "message": "잠긴 챕터입니다.",
+                                      "data": null
                                     }
                                     """))),
             @ApiResponse(responseCode = "409", description = "이미 완주한 챕터",

@@ -181,6 +181,12 @@ public class StoryService {
 
     @Transactional
     public StoryChoiceSelectResponse selectChoice(Long userId, Long storyId, SelectStoryChoiceRequest request) {
+        Story story = storyRepository.findById(storyId)
+                .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
+        if (story.isLocked()) {
+            throw new CustomException(StoryErrorCode.STORY_LOCKED);
+        }
+
         StoryQuestion question = storyQuestionRepository.findById(request.getQuestionId())
                 .filter(q -> q.getStoryId().equals(storyId))
                 .orElseThrow(() -> new CustomException(StoryErrorCode.INVALID_CHOICE));
@@ -206,6 +212,9 @@ public class StoryService {
     public StoryCompleteResponse completeStory(Long userId, Long storyId) {
         Story story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
+        if (story.isLocked()) {
+            throw new CustomException(StoryErrorCode.STORY_LOCKED);
+        }
 
         UserStoryProgress progress = userStoryProgressRepository.findByUserIdAndStoryId(userId, storyId)
                 .orElseGet(() -> UserStoryProgress.builder().userId(userId).storyId(storyId).build());
