@@ -1,4 +1,5 @@
 package com.meisterbear.domain.product.entity;
 
-public class TagType {
+public enum TagType {
+    STORE, PURCHASE
 }
