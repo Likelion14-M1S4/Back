@@ -1,5 +1,6 @@
 package com.meisterbear.domain.story.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
@@ -9,9 +10,11 @@ import lombok.Getter;
 @Schema(description = "챕터 완주 처리 응답")
 public class StoryCompleteResponse {
 
+    @JsonProperty("isDone")
     @Schema(description = "현재 챕터 완주 여부", example = "true")
     private boolean isDone;
 
+    @JsonProperty("isAllCompleted")
     @Schema(description = "3챕터 전체 완주 여부", example = "true")
     private boolean isAllCompleted;
 

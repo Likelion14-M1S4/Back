@@ -4,6 +4,8 @@ import com.meisterbear.domain.character.entity.Character;
 import com.meisterbear.domain.character.entity.Collection;
 import com.meisterbear.domain.character.repository.CharacterRepository;
 import com.meisterbear.domain.character.repository.CollectionRepository;
+import com.meisterbear.domain.product.entity.Product;
+import com.meisterbear.domain.product.repository.ProductRepository;
 import com.meisterbear.domain.story.dto.request.SelectStoryChoiceRequest;
 import com.meisterbear.domain.story.dto.response.CurrentSeasonResponse;
 import com.meisterbear.domain.story.dto.response.PastSeasonResponse;
@@ -30,6 +32,7 @@ import com.meisterbear.domain.story.repository.UserChoiceRepository;
 import com.meisterbear.domain.story.repository.UserStoryProgressRepository;
 import com.meisterbear.global.exception.CustomException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,6 +57,7 @@ public class StoryService {
 
     private final CollectionRepository collectionRepository;
     private final CharacterRepository characterRepository;
+    private final ProductRepository productRepository;
     private final StoryRepository storyRepository;
     private final StorySceneRepository storySceneRepository;
     private final StoryQuestionRepository storyQuestionRepository;
@@ -79,7 +83,11 @@ public class StoryService {
                 .collect(Collectors.groupingBy(Story::getSeason, LinkedHashMap::new, Collectors.toList()));
 
         List<String> seasons = List.copyOf(storiesBySeason.keySet());
-        String currentSeasonName = resolveCurrentSeason(seasons);
+        String productSeason = resolveProductSeason(characterId);
+        // 유저가 등록한 제품의 시즌을 우선 사용하고, 그 시즌 스토리가 아직 없으면(콘텐츠 미시딩 등) 날짜 기반으로 폴백한다.
+        String currentSeasonName = storiesBySeason.containsKey(productSeason)
+                ? productSeason
+                : resolveCurrentSeason(seasons);
         List<Story> currentSeasonStories = storiesBySeason.get(currentSeasonName);
 
         List<Long> storyIds = currentSeasonStories.stream().map(Story::getId).toList();
@@ -87,10 +95,22 @@ public class StoryService {
                 .findByUserIdAndStoryIdIn(userId, storyIds).stream()
                 .collect(Collectors.toMap(UserStoryProgress::getStoryId, progress -> progress));
 
-        List<StoryProgressResponse> storyResponses = currentSeasonStories.stream()
-                .sorted((a, b) -> Integer.compare(a.getUnlockOrder(), b.getUnlockOrder()))
-                .map(story -> toStoryProgressResponse(story, progressByStoryId.get(story.getId())))
+        List<Story> sortedStories = currentSeasonStories.stream()
+                .sorted(Comparator.comparing(Story::getUnlockOrder))
                 .toList();
+        List<StoryProgressResponse> storyResponses = new ArrayList<>();
+        for (int i = 0; i < sortedStories.size(); i++) {
+            Story story = sortedStories.get(i);
+            // 1번 챕터는 항상 해금, 그 외는 직전 챕터를 이 유저가 완주했는지로 판단 (전역 상태 아님)
+            boolean locked;
+            if (i == 0) {
+                locked = false;
+            } else {
+                UserStoryProgress previousProgress = progressByStoryId.get(sortedStories.get(i - 1).getId());
+                locked = previousProgress == null || !previousProgress.isDone();
+            }
+            storyResponses.add(toStoryProgressResponse(story, progressByStoryId.get(story.getId()), locked));
+        }
 
         List<PastSeasonResponse> pastSeasons = seasons.stream()
                 .filter(season -> !season.equals(currentSeasonName))
@@ -105,6 +125,15 @@ public class StoryService {
                         .build())
                 .pastSeasons(pastSeasons)
                 .build();
+    }
+
+    // 유저가 등록한 제품(캐릭터의 원본 제품) 자체의 season 값을 그대로 사용한다.
+    private String resolveProductSeason(Long characterId) {
+        Character character = characterRepository.findById(characterId)
+                .orElseThrow(() -> new IllegalStateException("캐릭터를 찾을 수 없습니다. characterId=" + characterId));
+        Product product = productRepository.findById(character.getProductId())
+                .orElseThrow(() -> new IllegalStateException("제품을 찾을 수 없습니다. productId=" + character.getProductId()));
+        return product.getSeason();
     }
 
     // 오늘이 포함된 시즌을 current로 판단. 오늘이 포함된 시즌이 없으면 이미 시작된 시즌 중 가장 최근 것,
@@ -149,7 +178,8 @@ public class StoryService {
     public StoryDetailResponse findStoryDetail(Long userId, Long storyId) {
         Story story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
-        if (story.isLocked()) {
+        boolean unlocked = isUnlockedForUser(userId, story);
+        if (!unlocked) {
             throw new CustomException(StoryErrorCode.STORY_LOCKED);
         }
 
@@ -169,7 +199,7 @@ public class StoryService {
                 .id(story.getId())
                 .title(story.getTitle())
                 .unlockOrder(story.getUnlockOrder())
-                .isLocked(story.isLocked())
+                .isLocked(!unlocked)
                 .isDone(isDone)
                 .scenes(scenes.stream().map(this::toSceneResponse).toList())
                 .questions(questions.stream()
@@ -183,7 +213,7 @@ public class StoryService {
     public StoryChoiceSelectResponse selectChoice(Long userId, Long storyId, SelectStoryChoiceRequest request) {
         Story story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
-        if (story.isLocked()) {
+        if (!isUnlockedForUser(userId, story)) {
             throw new CustomException(StoryErrorCode.STORY_LOCKED);
         }
 
@@ -212,7 +242,7 @@ public class StoryService {
     public StoryCompleteResponse completeStory(Long userId, Long storyId) {
         Story story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
-        if (story.isLocked()) {
+        if (!isUnlockedForUser(userId, story)) {
             throw new CustomException(StoryErrorCode.STORY_LOCKED);
         }
 
@@ -227,12 +257,9 @@ public class StoryService {
         Long characterId = story.getCharacterId();
         String season = story.getSeason();
 
+        // 다음 챕터는 전역 상태를 바꾸지 않는다 - 해금 여부는 조회 시점에 유저별로 계산된다(isUnlockedForUser)
         Optional<Story> nextStory = storyRepository.findByCharacterIdAndSeasonAndUnlockOrder(
                 characterId, season, story.getUnlockOrder() + 1);
-        nextStory.ifPresent(next -> {
-            next.unlock();
-            storyRepository.save(next);
-        });
 
         boolean isAllCompleted = isSeasonCompleted(userId, characterId, season);
 
@@ -247,6 +274,20 @@ public class StoryService {
                 .nextStoryId(nextStory.map(Story::getId).orElse(null))
                 .productId(character.getProductId())
                 .build();
+    }
+
+    // 1번 챕터는 항상 해금, 그 외는 "이 유저가" 직전 챕터를 완주했는지로 판단한다.
+    // Story.is_locked 전역 컬럼은 여러 유저가 캐릭터를 공유하므로 해금 판정에 쓰지 않는다.
+    private boolean isUnlockedForUser(Long userId, Story story) {
+        if (story.getUnlockOrder() <= 1) {
+            return true;
+        }
+        return storyRepository.findByCharacterIdAndSeasonAndUnlockOrder(
+                        story.getCharacterId(), story.getSeason(), story.getUnlockOrder() - 1)
+                .map(previous -> userStoryProgressRepository.findByUserIdAndStoryId(userId, previous.getId())
+                        .map(UserStoryProgress::isDone)
+                        .orElse(false))
+                .orElse(false);
     }
 
     private boolean isSeasonCompleted(Long userId, Long characterId, String season) {
@@ -287,12 +328,12 @@ public class StoryService {
                 .build();
     }
 
-    private StoryProgressResponse toStoryProgressResponse(Story story, UserStoryProgress progress) {
+    private StoryProgressResponse toStoryProgressResponse(Story story, UserStoryProgress progress, boolean isLocked) {
         return StoryProgressResponse.builder()
                 .id(story.getId())
                 .title(story.getTitle())
                 .unlockOrder(story.getUnlockOrder())
-                .isLocked(story.isLocked())
+                .isLocked(isLocked)
                 .isDone(progress != null && progress.isDone())
                 .readAt(progress != null ? progress.getReadAt() : null)
                 .build();
