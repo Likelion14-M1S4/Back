@@ -1,5 +1,7 @@
 package com.meisterbear.domain.story.controller;
 
+import com.meisterbear.domain.story.dto.request.SelectStoryChoiceRequest;
+import com.meisterbear.domain.story.dto.response.StoryChoiceSelectResponse;
 import com.meisterbear.domain.story.dto.response.StoryDetailResponse;
 import com.meisterbear.domain.story.dto.response.StoryListResponse;
 import com.meisterbear.domain.story.service.StoryService;
@@ -13,10 +15,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -174,5 +181,57 @@ public class StoryController {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         StoryDetailResponse response = storyService.findStoryDetail(userId, storyId);
         return BaseResponse.success("스토리 상세 조회 성공", response);
+    }
+
+    @Operation(
+            summary = "스토리 선택지 선택",
+            description = "선택 결과를 user_choice에 저장한다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "선택지 저장 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "저장 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 201,
+                                      "message": "선택지 저장 성공",
+                                      "data": {
+                                        "userChoiceId": 1,
+                                        "tagName": "calm"
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 선택지",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "유효하지 않은 선택지", value = """
+                                    {
+                                      "success": false,
+                                      "code": "STORY400",
+                                      "message": "유효하지 않은 선택지입니다.",
+                                      "data": null
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "인증 실패", value = """
+                                    {
+                                      "success": false,
+                                      "code": "G006",
+                                      "message": "인증이 필요합니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @PostMapping("/{storyId}/choice")
+    public ResponseEntity<BaseResponse<StoryChoiceSelectResponse>> selectChoice(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "스토리(챕터) ID", example = "1") @PathVariable Long storyId,
+            @Valid @RequestBody SelectStoryChoiceRequest request) {
+        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        StoryChoiceSelectResponse response = storyService.selectChoice(userId, storyId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(BaseResponse.success("선택지 저장 성공", response));
     }
 }
