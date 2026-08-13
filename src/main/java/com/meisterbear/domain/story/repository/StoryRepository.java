@@ -9,5 +9,7 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
 
     List<Story> findByCharacterIdOrderByIdAsc(Long characterId);
 
+    List<Story> findByCharacterIdAndSeason(Long characterId, String season);
+
     Optional<Story> findByCharacterIdAndSeasonAndUnlockOrder(Long characterId, String season, Integer unlockOrder);
 }

@@ -34,4 +34,7 @@ public class StoryProgressResponse {
     @Schema(description = "미완주 챕터의 짧은 소개 문구 (story.scenes 첫 장면에서 추출, 완주했으면 null)",
             example = "제품을 만든 장인과 공방 속의 이야기를 들여다봅니다.")
     private String teaser;
+
+    @Schema(description = "story.thumbnail_url", example = "https://cdn.meisterbear.com/story/3-thumb.png")
+    private String thumbnailUrl;
 }

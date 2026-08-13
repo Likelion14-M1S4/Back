@@ -9,10 +9,12 @@ import com.meisterbear.domain.character.repository.CollectionRepository;
 import com.meisterbear.domain.product.entity.Product;
 import com.meisterbear.domain.product.repository.ProductRepository;
 import com.meisterbear.domain.story.dto.response.ChoiceResponse;
+import com.meisterbear.domain.story.dto.response.StoryChoiceResultResponse;
 import com.meisterbear.domain.story.dto.response.CurrentSeasonResponse;
 import com.meisterbear.domain.story.dto.response.PastSeasonResponse;
 import com.meisterbear.domain.story.dto.response.QuestionResponse;
 import com.meisterbear.domain.story.dto.response.SceneResponse;
+import com.meisterbear.domain.story.dto.response.StoryCompleteResultResponse;
 import com.meisterbear.domain.story.dto.response.StoryDetailResponse;
 import com.meisterbear.domain.story.dto.response.StoryListResponse;
 import com.meisterbear.domain.story.dto.response.StoryProgressResponse;
@@ -72,7 +74,8 @@ public class StoryService {
                 .collect(Collectors.groupingBy(Story::getSeason, LinkedHashMap::new, Collectors.toList()));
 
         List<String> seasons = List.copyOf(storiesBySeason.keySet());
-        String productSeason = resolveProductSeason(characterId);
+        Character character = resolveCharacter(characterId);
+        String productSeason = resolveProductSeason(character);
         String currentSeasonName = storiesBySeason.containsKey(productSeason)
                 ? productSeason
                 : resolveCurrentSeason(seasons);
@@ -116,6 +119,8 @@ public class StoryService {
         return StoryListResponse.builder()
                 .currentSeason(CurrentSeasonResponse.builder()
                         .season(currentSeasonName)
+                        .characterName(character.getName())
+                        .characterImgUrl(character.getImgUrl())
                         .stories(storyResponses)
                         .isAllCompleted(allCompleted)
                         .build())
@@ -133,6 +138,7 @@ public class StoryService {
 
         UserStoryProgress progress = userStoryProgressRepository.findByUserIdAndStoryId(userId, storyId)
                 .orElse(null);
+        Character character = resolveCharacter(story.getCharacterId());
 
         log.info("[StoryService] 챕터 상세 조회 완료 - userId={}, storyId={}", userId, storyId);
         return StoryDetailResponse.builder()
@@ -143,7 +149,79 @@ public class StoryService {
                 .readAt(progress != null ? progress.getReadAt() : null)
                 .scenes(parseScenes(story.getScenes()))
                 .question(parseQuestion(story.getQuestions()))
+                .isSeasonCompleted(isSeasonCompleted(userId, story))
+                .characterName(character.getName())
+                .characterImgUrl(character.getImgUrl())
                 .build();
+    }
+
+    @Transactional
+    public StoryChoiceResultResponse selectChoice(Long userId, Long storyId, Long choiceId) {
+        Story story = storyRepository.findById(storyId)
+                .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
+
+        if (isLocked(userId, story)) {
+            throw new CustomException(StoryErrorCode.STORY_LOCKED);
+        }
+
+        String tagName = resolveChoiceTagName(story.getQuestions(), choiceId);
+
+        log.info("[StoryService] 챕터 선택 완료 - userId={}, storyId={}, choiceId={}", userId, storyId, choiceId);
+        return StoryChoiceResultResponse.builder()
+                .storyId(storyId)
+                .tagName(tagName)
+                .build();
+    }
+
+    // 스토리를 끝까지 다 본 뒤 완료 버튼을 눌렀을 때 호출 - 여기서만 챕터를 완료 처리한다
+    @Transactional
+    public StoryCompleteResultResponse completeStory(Long userId, Long storyId) {
+        Story story = storyRepository.findById(storyId)
+                .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
+
+        if (isLocked(userId, story)) {
+            throw new CustomException(StoryErrorCode.STORY_LOCKED);
+        }
+
+        UserStoryProgress progress = userStoryProgressRepository.findByUserIdAndStoryId(userId, storyId)
+                .orElseGet(() -> UserStoryProgress.builder().userId(userId).storyId(storyId).build());
+        progress.complete();
+        userStoryProgressRepository.save(progress);
+        Character character = resolveCharacter(story.getCharacterId());
+
+        log.info("[StoryService] 챕터 완료 처리 - userId={}, storyId={}", userId, storyId);
+        return StoryCompleteResultResponse.builder()
+                .storyId(storyId)
+                .isDone(progress.isDone())
+                .readAt(progress.getReadAt())
+                .isSeasonCompleted(isSeasonCompleted(userId, story))
+                .characterName(character.getName())
+                .characterImgUrl(character.getImgUrl())
+                .build();
+    }
+
+    // questions[0].choices 중 choiceId와 일치하는 항목의 tagName을 반환 (유효성 검증 겸함)
+    private String resolveChoiceTagName(String questionsJson, Long choiceId) {
+        if (questionsJson == null || questionsJson.isBlank()) {
+            throw new CustomException(StoryErrorCode.INVALID_CHOICE);
+        }
+        try {
+            JsonNode questions = objectMapper.readTree(questionsJson);
+            if (!questions.isArray() || questions.isEmpty()) {
+                throw new CustomException(StoryErrorCode.INVALID_CHOICE);
+            }
+            JsonNode question = questions.get(0);
+            return StreamSupport.stream(question.path("choices").spliterator(), false)
+                    .filter(choice -> choice.path("id").asLong() == choiceId)
+                    .findFirst()
+                    .map(choice -> choice.path("tagName").asText(null))
+                    .orElseThrow(() -> new CustomException(StoryErrorCode.INVALID_CHOICE));
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("[StoryService] questions JSON 파싱 실패 - {}", e.getMessage());
+            throw new CustomException(StoryErrorCode.INVALID_CHOICE);
+        }
     }
 
     // 1번 챕터는 항상 해금, 그 외는 직전 챕터를 이 유저가 완주했는지로 판단
@@ -210,13 +288,30 @@ public class StoryService {
         }
     }
 
-    // 유저가 등록한 제품(캐릭터의 원본 제품) 자체의 season 값을 그대로 사용한다.
-    private String resolveProductSeason(Long characterId) {
-        Character character = characterRepository.findById(characterId)
+    private Character resolveCharacter(Long characterId) {
+        return characterRepository.findById(characterId)
                 .orElseThrow(() -> new CustomException(StoryErrorCode.CHARACTER_NOT_FOUND));
+    }
+
+    // 유저가 등록한 제품(캐릭터의 원본 제품) 자체의 season 값을 그대로 사용한다.
+    private String resolveProductSeason(Character character) {
         Product product = productRepository.findById(character.getProductId())
                 .orElseThrow(() -> new CustomException(StoryErrorCode.PRODUCT_NOT_FOUND));
         return product.getSeason();
+    }
+
+    // 이 챕터가 속한 시즌의 모든 챕터를 이 유저가 완주했는지 (시즌 완료 화면 노출 여부)
+    private boolean isSeasonCompleted(Long userId, Story story) {
+        List<Story> seasonStories = storyRepository.findByCharacterIdAndSeason(story.getCharacterId(), story.getSeason());
+        List<Long> seasonStoryIds = seasonStories.stream().map(Story::getId).toList();
+        Map<Long, UserStoryProgress> progressByStoryId = userStoryProgressRepository
+                .findByUserIdAndStoryIdIn(userId, seasonStoryIds).stream()
+                .collect(Collectors.toMap(UserStoryProgress::getStoryId, progress -> progress));
+        return seasonStories.stream()
+                .allMatch(s -> {
+                    UserStoryProgress progress = progressByStoryId.get(s.getId());
+                    return progress != null && progress.isDone();
+                });
     }
 
     // 오늘이 포함된 시즌을 current로 판단. 없으면 이미 시작된 시즌 중 가장 최근 것, 그것도 없으면 가장 이른 시즌으로 폴백한다.
@@ -265,6 +360,7 @@ public class StoryService {
                 .isDone(done)
                 .readAt(progress != null ? progress.getReadAt() : null)
                 .teaser(done ? null : extractFirstSceneContent(story.getScenes()))
+                .thumbnailUrl(story.getThumbnailUrl())
                 .build();
     }
 
