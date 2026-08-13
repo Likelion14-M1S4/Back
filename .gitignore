@@ -1,0 +1,40 @@
+### Gradle ###
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+### Java ###
+*.class
+*.log
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+### IDE - IntelliJ ###
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+### IDE - Eclipse / STS ###
+.settings/
+.project
+.classpath
+bin/
+
+### IDE - VS Code ###
+.vscode/
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Secrets / Env (평문 커밋 금지) ###
+.env
+.env.*
+application-local.yml
+application-*-local.yml
+src/main/resources/application-local.yml
+
+### CLAUDE ###
+CLAUDE.md
