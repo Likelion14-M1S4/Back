@@ -1,12 +1,14 @@
 package com.meisterbear.domain.charm.service;
 
 import com.meisterbear.domain.charm.dto.response.CharmDetailResponse;
+import com.meisterbear.domain.charm.dto.response.CharmRecommendationResponse;
 import com.meisterbear.domain.charm.dto.response.OwnedCharmGroupResponse;
 import com.meisterbear.domain.charm.dto.response.OwnedCharmListResponse;
 import com.meisterbear.domain.charm.dto.response.OwnedCharmResponse;
 import com.meisterbear.domain.charm.dto.response.PurchasableCharmGroupResponse;
 import com.meisterbear.domain.charm.dto.response.PurchasableCharmListResponse;
 import com.meisterbear.domain.charm.dto.response.PurchasableCharmResponse;
+import com.meisterbear.domain.charm.dto.response.RecommendedCharmResponse;
 import com.meisterbear.domain.charm.entity.Charm;
 import com.meisterbear.domain.charm.entity.CharmReceipt;
 import com.meisterbear.domain.charm.entity.CharmReceiptStatus;
@@ -19,6 +21,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CharmService {
+
+    // collection_name이 비어있는 참을 묶는 그룹명. groupingBy는 classifier가 null을 반환하면
+    // NullPointerException을 던지므로, 그룹핑 전에 항상 이 기본값으로 치환한다.
+    private static final String UNCATEGORIZED_COLLECTION_NAME = "기타";
 
     private final CharmReceiptRepository charmReceiptRepository;
     private final CharmRepository charmRepository;
@@ -48,7 +55,8 @@ public class CharmService {
         List<Charm> charms = charmRepository.findAllById(charmIds);
 
         Map<String, List<Charm>> charmsByCollection = charms.stream()
-                .collect(Collectors.groupingBy(Charm::getCollectionName, LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(CharmService::resolveCollectionName, LinkedHashMap::new,
+                        Collectors.toList()));
 
         List<OwnedCharmGroupResponse> collections = charmsByCollection.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(Comparator.nullsLast(Comparator.naturalOrder())))
@@ -89,7 +97,8 @@ public class CharmService {
         }
 
         Map<String, List<Charm>> charmsByCollection = charms.stream()
-                .collect(Collectors.groupingBy(Charm::getCollectionName, LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(CharmService::resolveCollectionName, LinkedHashMap::new,
+                        Collectors.toList()));
 
         List<PurchasableCharmGroupResponse> collections = charmsByCollection.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(Comparator.nullsLast(Comparator.naturalOrder())))
@@ -119,16 +128,50 @@ public class CharmService {
         Charm charm = charmRepository.findById(charmId)
                 .orElseThrow(() -> new CustomException(CharmErrorCode.CHARM_NOT_FOUND));
 
-        boolean purchasable = storyService.isSeasonCompleted(userId, charm.getCharacterId(), charm.getSeason());
-
+        CharmDetailResponse response = toCharmDetailResponse(userId, charm);
         log.info("[CharmService] 시즌 한정 참 상세 조회 완료 - userId={}, charmId={}, isPurchasable={}",
-                userId, charmId, purchasable);
+                userId, charmId, response.isPurchasable());
+        return response;
+    }
+
+    // 참 추천 - 상단엔 선택한 참 상세, 하단엔 같은 collection_name×season(=같은 시즌 참 장식)의 나머지 참들을 반환
+    public CharmRecommendationResponse findCharmRecommendations(Long userId, Long charmId) {
+        Charm charm = charmRepository.findById(charmId)
+                .orElseThrow(() -> new CustomException(CharmErrorCode.CHARM_NOT_FOUND));
+
+        List<Charm> similarCharms = charmRepository
+                .findByCollectionNameAndSeasonAndIdNot(charm.getCollectionName(), charm.getSeason(), charm.getId());
+        List<RecommendedCharmResponse> recommendations = similarCharms.stream()
+                .map(similar -> RecommendedCharmResponse.builder()
+                        .id(similar.getId())
+                        .name(similar.getName())
+                        .imgUrl(similar.getImgUrl())
+                        .collectionName(similar.getCollectionName())
+                        .build())
+                .toList();
+
+        log.info("[CharmService] 참 추천 조회 완료 - userId={}, charmId={}, recommendationCount={}",
+                userId, charmId, recommendations.size());
+        return CharmRecommendationResponse.builder()
+                .charm(toCharmDetailResponse(userId, charm))
+                .recommendations(recommendations)
+                .build();
+    }
+
+    private static String resolveCollectionName(Charm charm) {
+        return Objects.requireNonNullElse(charm.getCollectionName(), UNCATEGORIZED_COLLECTION_NAME);
+    }
+
+    private CharmDetailResponse toCharmDetailResponse(Long userId, Charm charm) {
+        boolean purchasable = storyService.isSeasonCompleted(userId, charm.getCharacterId(), charm.getSeason());
         return CharmDetailResponse.builder()
                 .id(charm.getId())
                 .name(charm.getName())
                 .price(charm.getPrice())
                 .color(charm.getColor())
                 .imgUrl(charm.getImgUrl())
+                .description(charm.getDescription())
+                .collectionName(charm.getCollectionName())
                 .purchasable(purchasable)
                 .build();
     }

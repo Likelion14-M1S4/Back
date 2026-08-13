@@ -182,8 +182,9 @@ public class StoryController {
 
     @Operation(
             summary = "스토리 선택지 선택",
-            description = "질문의 선택지 중 하나를 선택한다. 선택에 따라 스토리 내용이 갈라지지는 않고, "
-                    + "선택한 choice의 tagName만 응답으로 돌려준다(선택 자체는 DB에 저장되지 않음). "
+            description = "질문의 선택지 중 하나를 선택한다. 선택에 따라 스토리 내용이 갈라진다 — 고른 choice에 연결된 "
+                    + "nextScenes(다음 장면 목록)와 tagName을 응답으로 돌려주며, 프론트는 이 장면들을 이어서 재생한다"
+                    + "(선택 자체는 DB에 저장되지 않음). "
                     + "챕터 완료 처리는 하지 않으며, 완료는 POST /{storyId}/complete에서 별도로 처리한다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "선택 처리 성공",
@@ -196,7 +197,10 @@ public class StoryController {
                                       "message": "요청이 성공적으로 처리되었습니다.",
                                       "data": {
                                         "storyId": 3,
-                                        "tagName": "classic"
+                                        "tagName": "classic",
+                                        "scenes": [
+                                          { "order": 1, "imgUrl": "https://cdn.meisterbear.com/story/3-classic-1.png", "content": "이번 시즌 클래식 라인업을 소개할게요." }
+                                        ]
                                       }
                                     }
                                     """))),

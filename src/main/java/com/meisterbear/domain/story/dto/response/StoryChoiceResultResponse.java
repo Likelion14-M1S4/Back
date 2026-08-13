@@ -1,6 +1,7 @@
 package com.meisterbear.domain.story.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -14,4 +15,7 @@ public class StoryChoiceResultResponse {
 
     @Schema(description = "선택한 choice의 tagName", example = "classic")
     private String tagName;
+
+    @Schema(description = "선택한 choice에 연결된 다음 장면 목록 (order 순 정렬). 프론트는 이 장면들을 이어서 재생한다")
+    private List<SceneResponse> scenes;
 }

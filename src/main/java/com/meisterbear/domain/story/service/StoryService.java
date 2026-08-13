@@ -155,6 +155,7 @@ public class StoryService {
                 .build();
     }
 
+    // 선택지마다 연결된 nextScenes가 다르므로, 고른 선택지에 따라 이어지는 장면이 갈라진다
     public StoryChoiceResultResponse selectChoice(Long userId, Long storyId, Long choiceId) {
         Story story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
@@ -163,12 +164,15 @@ public class StoryService {
             throw new CustomException(StoryErrorCode.STORY_LOCKED);
         }
 
-        String tagName = resolveChoiceTagName(story.getQuestions(), choiceId);
+        JsonNode choice = resolveChoice(story.getQuestions(), choiceId);
+        String tagName = choice.path("tagName").asText(null);
+        List<SceneResponse> nextScenes = parseScenes(choice.path("nextScenes"));
 
         log.info("[StoryService] 챕터 선택 완료 - userId={}, storyId={}, choiceId={}", userId, storyId, choiceId);
         return StoryChoiceResultResponse.builder()
                 .storyId(storyId)
                 .tagName(tagName)
+                .scenes(nextScenes)
                 .build();
     }
 
@@ -199,8 +203,8 @@ public class StoryService {
                 .build();
     }
 
-    // questions[0].choices 중 choiceId와 일치하는 항목의 tagName을 반환 (유효성 검증 겸함)
-    private String resolveChoiceTagName(String questionsJson, Long choiceId) {
+    // questions[0].choices 중 choiceId와 일치하는 항목을 반환 (유효성 검증 겸함)
+    private JsonNode resolveChoice(String questionsJson, Long choiceId) {
         if (questionsJson == null || questionsJson.isBlank()) {
             throw new CustomException(StoryErrorCode.INVALID_CHOICE);
         }
@@ -213,7 +217,6 @@ public class StoryService {
             return StreamSupport.stream(question.path("choices").spliterator(), false)
                     .filter(choice -> choice.path("id").asLong() == choiceId)
                     .findFirst()
-                    .map(choice -> choice.path("tagName").asText(null))
                     .orElseThrow(() -> new CustomException(StoryErrorCode.INVALID_CHOICE));
         } catch (CustomException e) {
             throw e;
@@ -243,22 +246,26 @@ public class StoryService {
             return List.of();
         }
         try {
-            JsonNode scenes = objectMapper.readTree(scenesJson);
-            if (!scenes.isArray()) {
-                return List.of();
-            }
-            return StreamSupport.stream(scenes.spliterator(), false)
-                    .map(node -> SceneResponse.builder()
-                            .order(node.path("order").asInt())
-                            .imgUrl(node.path("imgUrl").asText(null))
-                            .content(node.path("content").asText(null))
-                            .build())
-                    .sorted(Comparator.comparing(SceneResponse::getOrder))
-                    .toList();
+            return parseScenes(objectMapper.readTree(scenesJson));
         } catch (Exception e) {
             log.warn("[StoryService] scenes JSON 파싱 실패 - {}", e.getMessage());
             return List.of();
         }
+    }
+
+    // choices[].nextScenes처럼 이미 파싱된 JsonNode에서 장면 목록을 뽑을 때도 재사용
+    private List<SceneResponse> parseScenes(JsonNode scenesNode) {
+        if (scenesNode == null || scenesNode.isMissingNode() || !scenesNode.isArray()) {
+            return List.of();
+        }
+        return StreamSupport.stream(scenesNode.spliterator(), false)
+                .map(node -> SceneResponse.builder()
+                        .order(node.path("order").asInt())
+                        .imgUrl(node.path("imgUrl").asText(null))
+                        .content(node.path("content").asText(null))
+                        .build())
+                .sorted(Comparator.comparing(SceneResponse::getOrder))
+                .toList();
     }
 
     // 챕터당 질문은 1개만 사용 (questions 배열의 첫 번째 요소)

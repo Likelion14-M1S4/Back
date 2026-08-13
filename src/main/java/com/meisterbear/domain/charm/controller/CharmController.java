@@ -1,6 +1,7 @@
 package com.meisterbear.domain.charm.controller;
 
 import com.meisterbear.domain.charm.dto.response.CharmDetailResponse;
+import com.meisterbear.domain.charm.dto.response.CharmRecommendationResponse;
 import com.meisterbear.domain.charm.dto.response.OwnedCharmListResponse;
 import com.meisterbear.domain.charm.dto.response.PurchasableCharmListResponse;
 import com.meisterbear.domain.charm.service.CharmService;
@@ -152,6 +153,8 @@ public class CharmController {
                                         "price": 410000,
                                         "color": "꼬냑",
                                         "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
+                                        "description": "MCM의 상징성을 담아낸 라이언 참은 시그니처 비세토스 패턴과 정교한 가죽 디테일을 조화롭게 담아낸 아이코닉 액세서리입니다.",
+                                        "collectionName": "MCM BASIC COLLECTION",
                                         "isPurchasable": false
                                       }
                                     }
@@ -174,6 +177,62 @@ public class CharmController {
             @PathVariable Long charmId) {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         CharmDetailResponse response = charmService.findCharmDetail(userId, charmId);
+        return BaseResponse.success(response);
+    }
+
+    @Operation(
+            summary = "참 추천 조회",
+            description = "상단에는 선택한 참의 상세(charm)를, 하단에는 같은 collection_name×season(=같은 시즌 참 장식)에 속한 "
+                    + "나머지 참 목록(recommendations)을 함께 반환한다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "참 추천 조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "조회 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": {
+                                        "charm": {
+                                          "id": 1,
+                                          "name": "비세토스 라이언",
+                                          "price": 410000,
+                                          "color": "꼬냑",
+                                          "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
+                                          "description": "MCM의 상징성을 담아낸 라이언 참은 시그니처 비세토스 패턴과 정교한 가죽 디테일을 조화롭게 담아낸 아이코닉 액세서리입니다.",
+                                          "collectionName": "MCM BASIC COLLECTION",
+                                          "isPurchasable": false
+                                        },
+                                        "recommendations": [
+                                          {
+                                            "id": 2,
+                                            "name": "비세토스 라이언",
+                                            "imgUrl": "https://cdn.meisterbear.com/charm/2.png",
+                                            "collectionName": "MCM BASIC COLLECTION"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 참",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "참 없음", value = """
+                                    {
+                                      "success": false,
+                                      "code": "CHARM404",
+                                      "message": "해당 참을 찾을 수 없습니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @GetMapping("/{charmId}/recommendations")
+    public BaseResponse<CharmRecommendationResponse> findCharmRecommendations(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long charmId) {
+        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        CharmRecommendationResponse response = charmService.findCharmRecommendations(userId, charmId);
         return BaseResponse.success(response);
     }
 }
