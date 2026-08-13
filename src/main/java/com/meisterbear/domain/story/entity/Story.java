@@ -39,15 +39,25 @@ public class Story {
     @Column(name = "thumbnail_url", length = 255)
     private String thumbnailUrl;
 
+    // 장면 목록 JSON. 예: [{"id":1,"order":1,"imgUrl":"...","content":"..."}, ...]
+    @Column(columnDefinition = "json")
+    private String scenes;
+
+    // 질문/선택지 목록 JSON. 예: [{"id":1,"question":"...","choices":[{"id":1,"label":"...","tagName":"..."}]}, ...]
+    @Column(columnDefinition = "json")
+    private String questions;
+
     @Builder
     private Story(Long characterId, String title, Boolean locked, Integer unlockOrder, String season,
-                  String thumbnailUrl) {
+                  String thumbnailUrl, String scenes, String questions) {
         this.characterId = characterId;
         this.title = title;
         this.locked = locked != null ? locked : true;
         this.unlockOrder = unlockOrder != null ? unlockOrder : 0;
         this.season = season;
         this.thumbnailUrl = thumbnailUrl;
+        this.scenes = scenes;
+        this.questions = questions;
     }
 
     // 순서(1→2→3)에 따라 다음 챕터 해금

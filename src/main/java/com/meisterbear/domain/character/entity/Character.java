@@ -41,7 +41,7 @@ public class Character {
 
     @Builder
     private Character(Long productId, String name, String imgUrl, String personality, String intro,
-                      String lockedImgUrl) {
+            String lockedImgUrl) {
         this.productId = productId;
         this.name = name;
         this.imgUrl = imgUrl;

@@ -28,8 +28,13 @@ public class Collection {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "character_id", nullable = false, unique = true)
+    // 캐릭터는 시즌×지역 템플릿이라 여러 유저가 공유 가능 (유니크 아님)
+    @Column(name = "character_id", nullable = false)
     private Long characterId;
+
+    // 물리적 제품 1개는 유저 1명만 등록 가능
+    @Column(name = "product_id", nullable = false, unique = true)
+    private Long productId;
 
     @CreationTimestamp
     @Column(name = "added_at", nullable = false, updatable = false)
@@ -40,9 +45,10 @@ public class Collection {
     private CollectionStatus status;
 
     @Builder
-    private Collection(Long userId, Long characterId, CollectionStatus status) {
+    private Collection(Long userId, Long characterId, Long productId, CollectionStatus status) {
         this.userId = userId;
         this.characterId = characterId;
+        this.productId = productId;
         this.status = status != null ? status : CollectionStatus.LOCKED;
     }
 

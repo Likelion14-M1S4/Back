@@ -78,10 +78,14 @@ public class Product {
     @Column(name = "nfc_uid", unique = true, length = 50)
     private String nfcUid;
 
+    // 같은 디자인의 색상/사이즈 다른 버전끼리 묶는 값
+    @Column(name = "product_group_id")
+    private Long productGroupId;
+
     @Builder
     private Product(String name, String series, Integer price, String serialNo, String detail, String imgUrl,
                     String season, String material, String atelier, String region, ProductStatus status,
-                    String color, String size, String category, String nfcUid) {
+                    String color, String size, String category, String nfcUid, Long productGroupId) {
         this.name = name;
         this.series = series;
         this.price = price;
@@ -97,6 +101,7 @@ public class Product {
         this.size = size;
         this.category = category;
         this.nfcUid = nfcUid;
+        this.productGroupId = productGroupId;
     }
 
     public void markSold() {

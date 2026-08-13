@@ -1,4 +1,4 @@
-package com.meisterbear.domain.story.entity;
+package com.meisterbear.domain.wishlist.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,9 +15,9 @@ import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Getter
-@Table(name = "user_choice")
+@Table(name = "wishlist")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class UserChoice {
+public class Wishlist {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,16 +26,25 @@ public class UserChoice {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "choice_id", nullable = false)
-    private Long choiceId;
+    // product 찜 시 사용
+    @Column(name = "product_id")
+    private Long productId;
+
+    // charm 찜 시 사용
+    @Column(name = "charm_id")
+    private Long charmId;
 
     @CreationTimestamp
-    @Column(name = "selected_at", nullable = false, updatable = false)
-    private LocalDateTime selectedAt;
+    @Column(name = "saved_at", nullable = false, updatable = false)
+    private LocalDateTime savedAt;
 
     @Builder
-    private UserChoice(Long userId, Long choiceId) {
+    private Wishlist(Long userId, Long productId, Long charmId) {
+        if ((productId == null) == (charmId == null)) {
+            throw new IllegalArgumentException("productId와 charmId 중 정확히 하나만 지정해야 합니다.");
+        }
         this.userId = userId;
-        this.choiceId = choiceId;
+        this.productId = productId;
+        this.charmId = charmId;
     }
 }

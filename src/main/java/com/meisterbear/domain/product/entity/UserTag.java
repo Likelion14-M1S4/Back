@@ -8,10 +8,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Getter
@@ -35,6 +37,11 @@ public class UserTag {
 
     @Column(name = "tag_name", length = 255)
     private String tagName;
+
+    // 매장 태그 이력 날짜별 그룹핑용
+    @CreationTimestamp
+    @Column(name = "tagged_at", nullable = false, updatable = false)
+    private LocalDateTime taggedAt;
 
     @Builder
     private UserTag(Long userId, Long productId, TagType tagType, String tagName) {

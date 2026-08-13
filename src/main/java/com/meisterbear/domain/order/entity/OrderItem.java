@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -49,9 +50,17 @@ public class OrderItem {
     @Column(length = 100)
     private String seller;
 
+    // 구 warranty.issued_at
+    @Column(name = "warranty_issued_at")
+    private LocalDate warrantyIssuedAt;
+
+    // 구 warranty.expires_at
+    @Column(name = "warranty_expires_at")
+    private LocalDate warrantyExpiresAt;
+
     @Builder
     private OrderItem(Long userId, Long productId, Long storeId, String orderNo, Integer qty, Integer paidPrice,
-                      LocalDateTime orderedAt, String seller) {
+            LocalDateTime orderedAt, String seller, LocalDate warrantyIssuedAt, LocalDate warrantyExpiresAt) {
         this.userId = userId;
         this.productId = productId;
         this.storeId = storeId;
@@ -64,6 +73,8 @@ public class OrderItem {
         this.paidPrice = paidPrice;
         this.orderedAt = orderedAt;
         this.seller = seller;
+        this.warrantyIssuedAt = warrantyIssuedAt;
+        this.warrantyExpiresAt = warrantyExpiresAt;
     }
 
     public void markReceived() {
