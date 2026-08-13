@@ -1,5 +1,7 @@
 package com.meisterbear.domain.wishlist.controller;
 
+import com.meisterbear.domain.wishlist.dto.request.ToggleWishlistRequest;
+import com.meisterbear.domain.wishlist.dto.response.ToggleWishlistResultResponse;
 import com.meisterbear.domain.wishlist.dto.response.WishlistListResponse;
 import com.meisterbear.domain.wishlist.service.WishlistService;
 import com.meisterbear.global.common.BaseResponse;
@@ -14,6 +16,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -81,6 +85,83 @@ public class WishlistController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         WishlistListResponse response = wishlistService.findWishlist(userId);
+        return BaseResponse.success(response);
+    }
+
+    @Operation(
+            summary = "위시리스트 찜/해제 토글",
+            description = "이미 찜한 상태면 해제(삭제), 아니면 찜(추가)한다. 제품/참 상세의 하트 아이콘과 위시리스트 목록의 X 버튼이 "
+                    + "이 API 하나를 공유한다 - 하트를 누르면 isWished=true로 응답이 와서 하트를 채워서 표시하면 되고, "
+                    + "위시리스트 목록에서 X를 누르면 isWished=false로 응답이 와서 그 항목을 목록에서 지우면 된다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "토글 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = {
+                                    @ExampleObject(name = "찜 추가됨 (하트 채우기)", value = """
+                                            {
+                                              "success": true,
+                                              "code": 200,
+                                              "message": "요청이 성공적으로 처리되었습니다.",
+                                              "data": {
+                                                "type": "PRODUCT",
+                                                "targetId": 5,
+                                                "isWished": true
+                                              }
+                                            }
+                                            """),
+                                    @ExampleObject(name = "찜 해제됨 (목록에서 제거)", value = """
+                                            {
+                                              "success": true,
+                                              "code": 200,
+                                              "message": "요청이 성공적으로 처리되었습니다.",
+                                              "data": {
+                                                "type": "PRODUCT",
+                                                "targetId": 5,
+                                                "isWished": false
+                                              }
+                                            }
+                                            """)
+                            })),
+            @ApiResponse(responseCode = "400", description = "productId/charmId 둘 다 없거나 둘 다 있음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "잘못된 요청", value = """
+                                    {
+                                      "success": false,
+                                      "code": "WISHLIST400",
+                                      "message": "productId와 charmId 중 정확히 하나만 지정해야 합니다.",
+                                      "data": null
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 제품/참",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = {
+                                    @ExampleObject(name = "제품 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "PROD404",
+                                              "message": "해당 상품을 찾을 수 없습니다.",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(name = "참 없음", value = """
+                                            {
+                                              "success": false,
+                                              "code": "CHARM404",
+                                              "message": "해당 참을 찾을 수 없습니다.",
+                                              "data": null
+                                            }
+                                            """)
+                            }))
+    })
+    @PostMapping("/toggle")
+    public BaseResponse<ToggleWishlistResultResponse> toggleWishlist(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody ToggleWishlistRequest request) {
+        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        ToggleWishlistResultResponse response = wishlistService.toggleWishlist(userId, request);
         return BaseResponse.success(response);
     }
 }

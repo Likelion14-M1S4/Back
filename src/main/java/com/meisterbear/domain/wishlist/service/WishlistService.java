@@ -1,18 +1,26 @@
 package com.meisterbear.domain.wishlist.service;
 
 import com.meisterbear.domain.charm.entity.Charm;
+import com.meisterbear.domain.charm.exception.CharmErrorCode;
 import com.meisterbear.domain.charm.repository.CharmRepository;
 import com.meisterbear.domain.product.entity.Product;
+import com.meisterbear.domain.product.exception.ProductErrorCode;
 import com.meisterbear.domain.product.repository.ProductRepository;
+import com.meisterbear.domain.wishlist.dto.request.ToggleWishlistRequest;
+import com.meisterbear.domain.wishlist.dto.response.ToggleWishlistResultResponse;
 import com.meisterbear.domain.wishlist.dto.response.WishlistItemResponse;
 import com.meisterbear.domain.wishlist.dto.response.WishlistListResponse;
 import com.meisterbear.domain.wishlist.entity.Wishlist;
 import com.meisterbear.domain.wishlist.entity.WishlistItemType;
+import com.meisterbear.domain.wishlist.exception.WishlistErrorCode;
 import com.meisterbear.domain.wishlist.repository.WishlistRepository;
+import com.meisterbear.global.exception.CustomException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +67,64 @@ public class WishlistService {
         return WishlistListResponse.builder()
                 .items(items)
                 .build();
+    }
+
+    // productId, charmId 중 정확히 하나만 받아 이미 찜한 상태면 해제(삭제), 아니면 찜(생성)한다.
+    // 제품/참 상세의 하트 아이콘, 위시리스트 목록의 X 버튼이 이 메서드 하나를 공유한다.
+    @Transactional
+    public ToggleWishlistResultResponse toggleWishlist(Long userId, ToggleWishlistRequest request) {
+        Long productId = request.getProductId();
+        Long charmId = request.getCharmId();
+        if ((productId == null) == (charmId == null)) {
+            throw new CustomException(WishlistErrorCode.INVALID_TARGET);
+        }
+
+        if (productId != null) {
+            return toggleProduct(userId, productId);
+        }
+        return toggleCharm(userId, charmId);
+    }
+
+    private ToggleWishlistResultResponse toggleProduct(Long userId, Long productId) {
+        if (!productRepository.existsById(productId)) {
+            throw new CustomException(ProductErrorCode.PRODUCT_NOT_FOUND);
+        }
+
+        Optional<Wishlist> existing = wishlistRepository.findByUserIdAndProductId(userId, productId);
+        boolean wished = applyToggle(existing, () -> Wishlist.builder().userId(userId).productId(productId).build());
+
+        log.info("[WishlistService] 제품 찜 토글 완료 - userId={}, productId={}, isWished={}", userId, productId, wished);
+        return ToggleWishlistResultResponse.builder()
+                .type(WishlistItemType.PRODUCT)
+                .targetId(productId)
+                .wished(wished)
+                .build();
+    }
+
+    private ToggleWishlistResultResponse toggleCharm(Long userId, Long charmId) {
+        if (!charmRepository.existsById(charmId)) {
+            throw new CustomException(CharmErrorCode.CHARM_NOT_FOUND);
+        }
+
+        Optional<Wishlist> existing = wishlistRepository.findByUserIdAndCharmId(userId, charmId);
+        boolean wished = applyToggle(existing, () -> Wishlist.builder().userId(userId).charmId(charmId).build());
+
+        log.info("[WishlistService] 참 찜 토글 완료 - userId={}, charmId={}, isWished={}", userId, charmId, wished);
+        return ToggleWishlistResultResponse.builder()
+                .type(WishlistItemType.CHARM)
+                .targetId(charmId)
+                .wished(wished)
+                .build();
+    }
+
+    // 기존 찜이 있으면 삭제(해제)하고 false, 없으면 새로 만들고(찜) true를 반환
+    private boolean applyToggle(Optional<Wishlist> existing, Supplier<Wishlist> newWishlist) {
+        if (existing.isPresent()) {
+            wishlistRepository.delete(existing.get());
+            return false;
+        }
+        wishlistRepository.save(newWishlist.get());
+        return true;
     }
 
     private WishlistItemResponse toWishlistItemResponse(Wishlist wishlist, Map<Long, Product> productsById,
