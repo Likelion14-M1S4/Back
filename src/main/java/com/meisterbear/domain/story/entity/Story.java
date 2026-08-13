@@ -43,7 +43,10 @@ public class Story {
     @Column(columnDefinition = "json")
     private String scenes;
 
-    // 질문/선택지 목록 JSON. 예: [{"id":1,"question":"...","choices":[{"id":1,"label":"...","tagName":"..."}]}, ...]
+    // 질문/선택지 목록 JSON. choices[].nextScenes는 그 선택지를 고르면 이어서 재생되는, 선택에 따라 갈라지는 장면들이다.
+    // 예: [{"id":1,"question":"...","choices":[
+    //       {"id":1,"label":"...","tagName":"...","nextScenes":[{"order":1,"imgUrl":"...","content":"..."}]}
+    //     ]}, ...]
     @Column(columnDefinition = "json")
     private String questions;
 
