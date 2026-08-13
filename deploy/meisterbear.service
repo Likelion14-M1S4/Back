@@ -1,0 +1,20 @@
+[Unit]
+Description=MeisterBear Spring Boot Application
+After=network.target mysql.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/app
+# 정적 설정 (비밀 아님)
+Environment=SPRING_PROFILES_ACTIVE=dev
+Environment="DB_URL=jdbc:mysql://localhost:3306/meisterbear?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
+# 시크릿 (DB_USERNAME/DB_PASSWORD/JWT_SECRET/CORS/KAKAO) - 배포 시 Actions가 생성
+EnvironmentFile=/home/ubuntu/app/.env
+# t3.micro(1GB) 대비 힙 제한
+ExecStart=/usr/bin/java -Xms128m -Xmx320m -jar /home/ubuntu/app/app.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
