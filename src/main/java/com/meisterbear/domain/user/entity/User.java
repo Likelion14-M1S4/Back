@@ -37,11 +37,22 @@ public class User extends BaseTimeEntity {
     @Column(name = "refresh_token")
     private String refreshToken;
 
+    private String email;
+
+    private String phone;
+
+    // 카카오는 생일(MMDD)과 출생연도를 별도로, 그것도 동의한 경우만 내려줘서 완전한 날짜가 아닐 수 있음 - 문자열로 보관
+    @Column(name = "birth_date")
+    private String birthDate;
+
     @Builder
-    private User(Long kakaoId, String nickname, Role role) {
+    private User(Long kakaoId, String nickname, Role role, String email, String phone, String birthDate) {
         this.kakaoId = kakaoId;
         this.nickname = nickname;
         this.role = role;
+        this.email = email;
+        this.phone = phone;
+        this.birthDate = birthDate;
     }
 
     // Refresh Token 재발급/로그인 시 갱신
