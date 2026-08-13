@@ -36,6 +36,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/stories/**").permitAll() // TODO: 로그인 구현되면 제거
                         .requestMatchers("/api/charms/**").permitAll() // TODO: 로그인 구현되면 제거
                         .requestMatchers("/api/users/**").permitAll() // TODO: 로그인 구현되면 제거
+                        .requestMatchers("/api/wishlist/**").permitAll() // TODO: 로그인 구현되면 제거
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
