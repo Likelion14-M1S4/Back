@@ -27,6 +27,9 @@ public class Story {
     @Column(nullable = false, length = 255)
     private String title;
 
+    @Column(name = "is_locked", nullable = false)
+    private boolean locked;
+
     @Column(name = "unlock_order", nullable = false)
     private Integer unlockOrder;
 
@@ -37,11 +40,18 @@ public class Story {
     private String thumbnailUrl;
 
     @Builder
-    private Story(Long characterId, String title, Integer unlockOrder, String season, String thumbnailUrl) {
+    private Story(Long characterId, String title, Boolean locked, Integer unlockOrder, String season,
+                  String thumbnailUrl) {
         this.characterId = characterId;
         this.title = title;
+        this.locked = locked != null ? locked : true;
         this.unlockOrder = unlockOrder != null ? unlockOrder : 0;
         this.season = season;
         this.thumbnailUrl = thumbnailUrl;
+    }
+
+    // 순서(1→2→3)에 따라 다음 챕터 해금
+    public void unlock() {
+        this.locked = false;
     }
 }

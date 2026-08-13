@@ -28,8 +28,7 @@ public class Collection {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    // 캐릭터는 시즌×지역 조합 정의를 공유하는 여러 제품/유저가 함께 가질 수 있어 유니크 제약을 두지 않는다.
-    @Column(name = "character_id", nullable = false)
+    @Column(name = "character_id", nullable = false, unique = true)
     private Long characterId;
 
     @CreationTimestamp
