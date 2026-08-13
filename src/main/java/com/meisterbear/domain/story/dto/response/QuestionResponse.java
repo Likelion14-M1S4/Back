@@ -13,6 +13,8 @@ public class QuestionResponse {
     @Schema(description = "질문 문구", example = "무엇이 궁금하신가요?")
     private String question;
 
-    @Schema(description = "선택지 목록")
+    @Schema(description = "선택지 목록",
+            example = "[{\"id\":1,\"label\":\"이번 시즌의 제품에는 어떤 것이 있어?\"},"
+                    + "{\"id\":2,\"label\":\"이번 시즌 컬렉션의 주목해야할 부분은?\"}]")
     private List<ChoiceResponse> choices;
 }

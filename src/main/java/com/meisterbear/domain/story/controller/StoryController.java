@@ -48,7 +48,7 @@ public class StoryController {
                                     {
                                       "success": true,
                                       "code": 200,
-                                      "message": "스토리 목록 조회 성공",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
                                       "data": {
                                         "currentSeason": {
                                           "season": "AW2026",
@@ -110,7 +110,7 @@ public class StoryController {
     public BaseResponse<StoryListResponse> findStories(@AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         StoryListResponse response = storyService.findStories(userId);
-        return BaseResponse.success("스토리 목록 조회 성공", response);
+        return BaseResponse.success(response);
     }
 
     @Operation(
@@ -124,7 +124,7 @@ public class StoryController {
                                     {
                                       "success": true,
                                       "code": 200,
-                                      "message": "챕터 상세 조회 성공",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
                                       "data": {
                                         "id": 3,
                                         "title": "Craftmanship",
@@ -177,7 +177,7 @@ public class StoryController {
             @PathVariable Long storyId) {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         StoryDetailResponse response = storyService.findStoryDetail(userId, storyId);
-        return BaseResponse.success("챕터 상세 조회 성공", response);
+        return BaseResponse.success(response);
     }
 
     @Operation(
@@ -193,7 +193,7 @@ public class StoryController {
                                     {
                                       "success": true,
                                       "code": 200,
-                                      "message": "선택지 응답 완료",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
                                       "data": {
                                         "storyId": 3,
                                         "tagName": "classic"
@@ -241,7 +241,7 @@ public class StoryController {
             @RequestBody SelectStoryChoiceRequest request) {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         StoryChoiceResultResponse response = storyService.selectChoice(userId, storyId, request.getChoiceId());
-        return BaseResponse.success("선택지 응답 완료", response);
+        return BaseResponse.success(response);
     }
 
     @Operation(
@@ -256,7 +256,7 @@ public class StoryController {
                                     {
                                       "success": true,
                                       "code": 200,
-                                      "message": "챕터 완료",
+                                      "message": "요청이 성공적으로 처리되었습니다.",
                                       "data": {
                                         "storyId": 3,
                                         "isDone": true,
@@ -296,6 +296,6 @@ public class StoryController {
             @PathVariable Long storyId) {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         StoryCompleteResultResponse response = storyService.completeStory(userId, storyId);
-        return BaseResponse.success("챕터 완료", response);
+        return BaseResponse.success(response);
     }
 }

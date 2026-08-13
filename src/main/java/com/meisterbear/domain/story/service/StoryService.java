@@ -155,7 +155,6 @@ public class StoryService {
                 .build();
     }
 
-    @Transactional
     public StoryChoiceResultResponse selectChoice(Long userId, Long storyId, Long choiceId) {
         Story story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
@@ -235,7 +234,8 @@ public class StoryService {
                 .map(previous -> userStoryProgressRepository.findByUserIdAndStoryId(userId, previous.getId())
                         .map(p -> !p.isDone())
                         .orElse(true))
-                .orElse(false);
+                // 직전 챕터 데이터 자체가 없는 건 정합성 문제이므로 안전하게 잠금 처리
+                .orElse(true);
     }
 
     private List<SceneResponse> parseScenes(String scenesJson) {

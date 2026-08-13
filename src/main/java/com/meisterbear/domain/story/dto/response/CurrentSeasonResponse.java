@@ -20,7 +20,10 @@ public class CurrentSeasonResponse {
     @Schema(description = "character.img_url (완료 화면에 사용)", example = "https://cdn.meisterbear.com/character/1.png")
     private String characterImgUrl;
 
-    @Schema(description = "챕터 목록 (unlockOrder 순 정렬)")
+    @Schema(description = "챕터 목록 (unlockOrder 순 정렬)",
+            example = "[{\"id\":1,\"title\":\"Introduction\",\"unlockOrder\":1,\"isLocked\":false,"
+                    + "\"isDone\":true,\"readAt\":\"2026-08-10T11:00:00\",\"teaser\":null,"
+                    + "\"thumbnailUrl\":\"https://cdn.meisterbear.com/story/1-thumb.png\"}]")
     private List<StoryProgressResponse> stories;
 
     @JsonProperty("isAllCompleted")
