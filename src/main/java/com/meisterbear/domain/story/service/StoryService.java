@@ -302,7 +302,15 @@ public class StoryService {
 
     // 이 챕터가 속한 시즌의 모든 챕터를 이 유저가 완주했는지 (시즌 완료 화면 노출 여부)
     private boolean isSeasonCompleted(Long userId, Story story) {
-        List<Story> seasonStories = storyRepository.findByCharacterIdAndSeason(story.getCharacterId(), story.getSeason());
+        return isSeasonCompleted(userId, story.getCharacterId(), story.getSeason());
+    }
+
+    // 특정 캐릭터×시즌의 모든 챕터를 이 유저가 완주했는지. 참 구매(수령) 가능 여부 판단에도 재사용된다.
+    public boolean isSeasonCompleted(Long userId, Long characterId, String season) {
+        List<Story> seasonStories = storyRepository.findByCharacterIdAndSeason(characterId, season);
+        if (seasonStories.isEmpty()) {
+            return false;
+        }
         List<Long> seasonStoryIds = seasonStories.stream().map(Story::getId).toList();
         Map<Long, UserStoryProgress> progressByStoryId = userStoryProgressRepository
                 .findByUserIdAndStoryIdIn(userId, seasonStoryIds).stream()
