@@ -18,6 +18,7 @@ import com.meisterbear.domain.charm.repository.CharmRepository;
 import com.meisterbear.domain.story.service.StoryService;
 import com.meisterbear.global.exception.CustomException;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,9 +88,16 @@ public class CharmService {
                 .map(CharmReceipt::getCharmId)
                 .collect(Collectors.toSet());
 
-        List<Charm> charms = charmRepository.findAll().stream()
+        List<Charm> candidates = charmRepository.findAll().stream()
                 .filter(charm -> !ownedCharmIds.contains(charm.getId()))
-                .filter(charm -> storyService.isSeasonCompleted(userId, charm.getCharacterId(), charm.getSeason()))
+                .toList();
+
+        // (characterId, season) 조합별로 완주 여부를 한 번만 조회해서 참마다 중복 쿼리가 나가지 않게 캐싱
+        Map<String, Boolean> seasonCompletedCache = new HashMap<>();
+        List<Charm> charms = candidates.stream()
+                .filter(charm -> seasonCompletedCache.computeIfAbsent(
+                        charm.getCharacterId() + ":" + charm.getSeason(),
+                        key -> storyService.isSeasonCompleted(userId, charm.getCharacterId(), charm.getSeason())))
                 .toList();
         if (charms.isEmpty()) {
             log.info("[CharmService] 구매 가능한 참 목록 조회 완료(구매 가능한 참 없음) - userId={}", userId);
