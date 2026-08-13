@@ -11,11 +11,13 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Check;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Getter
 @Table(name = "wishlist")
+@Check(constraints = "(product_id IS NULL) <> (charm_id IS NULL)")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Wishlist {
 

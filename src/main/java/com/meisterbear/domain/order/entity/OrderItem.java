@@ -73,11 +73,17 @@ public class OrderItem {
         this.paidPrice = paidPrice;
         this.orderedAt = orderedAt;
         this.seller = seller;
+        if (warrantyIssuedAt != null && warrantyExpiresAt != null && warrantyExpiresAt.isBefore(warrantyIssuedAt)) {
+            throw new IllegalArgumentException("warrantyExpiresAt은 warrantyIssuedAt 이후여야 합니다.");
+        }
         this.warrantyIssuedAt = warrantyIssuedAt;
         this.warrantyExpiresAt = warrantyExpiresAt;
     }
 
     public void markReceived() {
+        if (this.receivedAt != null) {
+            throw new IllegalStateException("이미 수령 처리된 주문입니다.");
+        }
         this.receivedAt = LocalDateTime.now();
     }
 }

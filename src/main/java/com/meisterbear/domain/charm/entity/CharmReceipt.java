@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -17,7 +18,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Getter
-@Table(name = "charm_receipt")
+@Table(name = "charm_receipt",
+        uniqueConstraints = @UniqueConstraint(name = "UQ_CHARM_RECEIPT_SEASON_NO", columnNames = {"season", "receipt_no"}))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CharmReceipt {
 
@@ -34,7 +36,7 @@ public class CharmReceipt {
     @Column(name = "product_id", nullable = false)
     private Long productId;
 
-    @Column(name = "receipt_no", nullable = false, unique = true, length = 4)
+    @Column(name = "receipt_no", nullable = false, length = 4)
     private String receiptNo;
 
     @Enumerated(EnumType.STRING)
@@ -70,6 +72,9 @@ public class CharmReceipt {
     }
 
     public void complete() {
+        if (this.status != CharmReceiptStatus.SELECTED) {
+            throw new IllegalStateException("SELECTED 상태에서만 수령 완료 처리할 수 있습니다.");
+        }
         this.status = CharmReceiptStatus.COMPLETED;
         this.completedAt = LocalDateTime.now();
     }

@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -14,7 +15,8 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "user_story_progress")
+@Table(name = "user_story_progress",
+        uniqueConstraints = @UniqueConstraint(name = "UQ_USER_STORY_PROGRESS", columnNames = {"user_id", "story_id"}))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserStoryProgress {
 
