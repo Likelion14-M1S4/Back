@@ -1,5 +1,6 @@
 package com.meisterbear.domain.charm.controller;
 
+import com.meisterbear.domain.charm.dto.response.CharmDetailResponse;
 import com.meisterbear.domain.charm.dto.response.OwnedCharmListResponse;
 import com.meisterbear.domain.charm.service.CharmService;
 import com.meisterbear.global.common.BaseResponse;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -74,6 +76,50 @@ public class CharmController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         OwnedCharmListResponse response = charmService.findOwnedCharms(userId);
+        return BaseResponse.success(response);
+    }
+
+    @Operation(
+            summary = "시즌 한정 참 상세 조회",
+            description = "시즌 한정 참일 때만 호출되는 상세 조회. isPurchasable은 이 유저가 현재 시즌 스토리를 전부 완주했는지로 판단하며, "
+                    + "false면 프론트에서 '스토리 진행 후 구매 가능' 버튼을, true면 '구매 가능' 버튼을 노출한다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "시즌 한정 참 상세 조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "조회 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": {
+                                        "id": 1,
+                                        "name": "MCM 비세토스 라이언 참",
+                                        "price": 410000,
+                                        "color": "꼬냑",
+                                        "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
+                                        "isPurchasable": false
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 참",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "참 없음", value = """
+                                    {
+                                      "success": false,
+                                      "code": "CHARM404",
+                                      "message": "해당 참을 찾을 수 없습니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @GetMapping("/{charmId}")
+    public BaseResponse<CharmDetailResponse> findCharmDetail(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long charmId) {
+        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        CharmDetailResponse response = charmService.findCharmDetail(userId, charmId);
         return BaseResponse.success(response);
     }
 }
