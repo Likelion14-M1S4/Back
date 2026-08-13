@@ -60,6 +60,13 @@ public class User extends BaseTimeEntity {
         this.refreshToken = refreshToken;
     }
 
+    // 마이페이지 - 이메일은 카카오 연동 값이라 여기서 수정하지 않음
+    public void updateProfile(String nickname, String phone, String birthDate) {
+        this.nickname = nickname;
+        this.phone = phone;
+        this.birthDate = birthDate;
+    }
+
     // 로그아웃/탈퇴 시 초기화
     public void clearRefreshToken() {
         this.refreshToken = null;
