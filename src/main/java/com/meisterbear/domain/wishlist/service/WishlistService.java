@@ -24,6 +24,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -117,13 +118,19 @@ public class WishlistService {
                 .build();
     }
 
-    // 기존 찜이 있으면 삭제(해제)하고 false, 없으면 새로 만들고(찜) true를 반환
+    // 기존 찜이 있으면 삭제(해제)하고 false, 없으면 새로 만들고(찜) true를 반환.
+    // 동시에 두 요청이 둘 다 "찜 없음"으로 보고 동시에 insert를 시도하면 유니크 제약 위반이 나는데,
+    // 이건 결과적으로 둘 다 "찜된 상태"를 원한 거라 에러 대신 true로 처리한다.
     private boolean applyToggle(Optional<Wishlist> existing, Supplier<Wishlist> newWishlist) {
         if (existing.isPresent()) {
             wishlistRepository.delete(existing.get());
             return false;
         }
-        wishlistRepository.save(newWishlist.get());
+        try {
+            wishlistRepository.save(newWishlist.get());
+        } catch (DataIntegrityViolationException e) {
+            log.info("[WishlistService] 동시 찜 요청으로 유니크 제약 충돌 - 이미 찜된 것으로 처리");
+        }
         return true;
     }
 

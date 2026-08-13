@@ -13,6 +13,6 @@ public class ToggleWishlistRequest {
     @Schema(description = "찜/해제할 product.id. charmId와 동시에 보내지 않는다", example = "1")
     private Long productId;
 
-    @Schema(description = "찜/해제할 charm.id. productId와 동시에 보내지 않는다")
+    @Schema(description = "찜/해제할 charm.id. productId와 동시에 보내지 않는다", example = "2")
     private Long charmId;
 }
