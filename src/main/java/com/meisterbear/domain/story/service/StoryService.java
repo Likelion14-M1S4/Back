@@ -8,8 +8,12 @@ import com.meisterbear.domain.character.repository.CharacterRepository;
 import com.meisterbear.domain.character.repository.CollectionRepository;
 import com.meisterbear.domain.product.entity.Product;
 import com.meisterbear.domain.product.repository.ProductRepository;
+import com.meisterbear.domain.story.dto.response.ChoiceResponse;
 import com.meisterbear.domain.story.dto.response.CurrentSeasonResponse;
 import com.meisterbear.domain.story.dto.response.PastSeasonResponse;
+import com.meisterbear.domain.story.dto.response.QuestionResponse;
+import com.meisterbear.domain.story.dto.response.SceneResponse;
+import com.meisterbear.domain.story.dto.response.StoryDetailResponse;
 import com.meisterbear.domain.story.dto.response.StoryListResponse;
 import com.meisterbear.domain.story.dto.response.StoryProgressResponse;
 import com.meisterbear.domain.story.entity.Story;
@@ -117,6 +121,93 @@ public class StoryService {
                         .build())
                 .pastSeasons(pastSeasons)
                 .build();
+    }
+
+    public StoryDetailResponse findStoryDetail(Long userId, Long storyId) {
+        Story story = storyRepository.findById(storyId)
+                .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
+
+        if (isLocked(userId, story)) {
+            throw new CustomException(StoryErrorCode.STORY_LOCKED);
+        }
+
+        UserStoryProgress progress = userStoryProgressRepository.findByUserIdAndStoryId(userId, storyId)
+                .orElse(null);
+
+        log.info("[StoryService] 챕터 상세 조회 완료 - userId={}, storyId={}", userId, storyId);
+        return StoryDetailResponse.builder()
+                .id(story.getId())
+                .title(story.getTitle())
+                .unlockOrder(story.getUnlockOrder())
+                .isDone(progress != null && progress.isDone())
+                .readAt(progress != null ? progress.getReadAt() : null)
+                .scenes(parseScenes(story.getScenes()))
+                .question(parseQuestion(story.getQuestions()))
+                .build();
+    }
+
+    // 1번 챕터는 항상 해금, 그 외는 직전 챕터를 이 유저가 완주했는지로 판단
+    private boolean isLocked(Long userId, Story story) {
+        if (story.getUnlockOrder() == 1) {
+            return false;
+        }
+        return storyRepository
+                .findByCharacterIdAndSeasonAndUnlockOrder(story.getCharacterId(), story.getSeason(),
+                        story.getUnlockOrder() - 1)
+                .map(previous -> userStoryProgressRepository.findByUserIdAndStoryId(userId, previous.getId())
+                        .map(p -> !p.isDone())
+                        .orElse(true))
+                .orElse(false);
+    }
+
+    private List<SceneResponse> parseScenes(String scenesJson) {
+        if (scenesJson == null || scenesJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode scenes = objectMapper.readTree(scenesJson);
+            if (!scenes.isArray()) {
+                return List.of();
+            }
+            return StreamSupport.stream(scenes.spliterator(), false)
+                    .map(node -> SceneResponse.builder()
+                            .order(node.path("order").asInt())
+                            .imgUrl(node.path("imgUrl").asText(null))
+                            .content(node.path("content").asText(null))
+                            .build())
+                    .sorted(Comparator.comparing(SceneResponse::getOrder))
+                    .toList();
+        } catch (Exception e) {
+            log.warn("[StoryService] scenes JSON 파싱 실패 - {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    // 챕터당 질문은 1개만 사용 (questions 배열의 첫 번째 요소)
+    private QuestionResponse parseQuestion(String questionsJson) {
+        if (questionsJson == null || questionsJson.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode questions = objectMapper.readTree(questionsJson);
+            if (!questions.isArray() || questions.isEmpty()) {
+                return null;
+            }
+            JsonNode question = questions.get(0);
+            List<ChoiceResponse> choices = StreamSupport.stream(question.path("choices").spliterator(), false)
+                    .map(choice -> ChoiceResponse.builder()
+                            .id(choice.path("id").asLong())
+                            .label(choice.path("label").asText(null))
+                            .build())
+                    .toList();
+            return QuestionResponse.builder()
+                    .question(question.path("question").asText(null))
+                    .choices(choices)
+                    .build();
+        } catch (Exception e) {
+            log.warn("[StoryService] questions JSON 파싱 실패 - {}", e.getMessage());
+            return null;
+        }
     }
 
     // 유저가 등록한 제품(캐릭터의 원본 제품) 자체의 season 값을 그대로 사용한다.
