@@ -1,7 +1,10 @@
 package com.meisterbear.domain.charm.service;
 
+import com.meisterbear.domain.charm.dto.response.CharmCharacterResponse;
 import com.meisterbear.domain.charm.dto.response.CharmDetailResponse;
+import com.meisterbear.domain.charm.dto.response.CharmListResponse;
 import com.meisterbear.domain.charm.dto.response.CharmRecommendationResponse;
+import com.meisterbear.domain.charm.dto.response.CharmSummaryResponse;
 import com.meisterbear.domain.charm.dto.response.OwnedCharmGroupResponse;
 import com.meisterbear.domain.charm.dto.response.OwnedCharmListResponse;
 import com.meisterbear.domain.charm.dto.response.OwnedCharmResponse;
@@ -15,6 +18,9 @@ import com.meisterbear.domain.charm.entity.CharmReceiptStatus;
 import com.meisterbear.domain.charm.exception.CharmErrorCode;
 import com.meisterbear.domain.charm.repository.CharmReceiptRepository;
 import com.meisterbear.domain.charm.repository.CharmRepository;
+import com.meisterbear.domain.character.entity.Character;
+import com.meisterbear.domain.character.exception.CharacterErrorCode;
+import com.meisterbear.domain.character.repository.CharacterRepository;
 import com.meisterbear.domain.story.service.StoryService;
 import com.meisterbear.global.exception.CustomException;
 import java.util.Comparator;
@@ -27,6 +33,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,7 +49,31 @@ public class CharmService {
 
     private final CharmReceiptRepository charmReceiptRepository;
     private final CharmRepository charmRepository;
+    private final CharacterRepository characterRepository;
     private final StoryService storyService;
+
+    // 전체 참 목록 - id 오름차순으로 그룹핑 없이 카드 형태로 반환
+    public CharmListResponse findAllCharms() {
+        List<Charm> charms = charmRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+        if (charms.isEmpty()) {
+            log.info("[CharmService] 참 목록 조회 완료(참 없음)");
+            return CharmListResponse.empty();
+        }
+
+        List<CharmSummaryResponse> summaries = charms.stream()
+                .map(charm -> CharmSummaryResponse.builder()
+                        .id(charm.getId())
+                        .name(charm.getName())
+                        .imgUrl(charm.getImgUrl())
+                        .collectionName(charm.getCollectionName())
+                        .build())
+                .toList();
+
+        log.info("[CharmService] 참 목록 조회 완료 - count={}", summaries.size());
+        return CharmListResponse.builder()
+                .charms(summaries)
+                .build();
+    }
 
     public OwnedCharmListResponse findOwnedCharms(Long userId) {
         List<CharmReceipt> receipts = charmReceiptRepository.findByUserIdAndStatus(userId,
@@ -89,6 +120,7 @@ public class CharmService {
                 .collect(Collectors.toSet());
 
         List<Charm> candidates = charmRepository.findAll().stream()
+                .filter(Charm::isSeasonLimited)
                 .filter(charm -> !ownedCharmIds.contains(charm.getId()))
                 .toList();
 
@@ -131,14 +163,14 @@ public class CharmService {
                 .build();
     }
 
-    // 시즌 한정 참 상세 - 구매 가능 여부는 이 참에 연결된 캐릭터×시즌 스토리를 이 유저가 전부 완주했는지로 판단
+    // 참 상세 - isSeasonLimited에 따라 구매 가능 여부(시즌 한정) 또는 캐릭터 정보(일반)를 채워서 반환
     public CharmDetailResponse findCharmDetail(Long userId, Long charmId) {
         Charm charm = charmRepository.findById(charmId)
                 .orElseThrow(() -> new CustomException(CharmErrorCode.CHARM_NOT_FOUND));
 
         CharmDetailResponse response = toCharmDetailResponse(userId, charm);
-        log.info("[CharmService] 시즌 한정 참 상세 조회 완료 - userId={}, charmId={}, isPurchasable={}",
-                userId, charmId, response.isPurchasable());
+        log.info("[CharmService] 참 상세 조회 완료 - userId={}, charmId={}, isSeasonLimited={}, isPurchasable={}",
+                userId, charmId, response.isSeasonLimited(), response.getPurchasable());
         return response;
     }
 
@@ -171,8 +203,7 @@ public class CharmService {
     }
 
     private CharmDetailResponse toCharmDetailResponse(Long userId, Charm charm) {
-        boolean purchasable = storyService.isSeasonCompleted(userId, charm.getCharacterId(), charm.getSeason());
-        return CharmDetailResponse.builder()
+        CharmDetailResponse.CharmDetailResponseBuilder builder = CharmDetailResponse.builder()
                 .id(charm.getId())
                 .name(charm.getName())
                 .price(charm.getPrice())
@@ -180,7 +211,21 @@ public class CharmService {
                 .imgUrl(charm.getImgUrl())
                 .description(charm.getDescription())
                 .collectionName(charm.getCollectionName())
-                .purchasable(purchasable)
+                .seasonLimited(charm.isSeasonLimited());
+
+        if (charm.isSeasonLimited()) {
+            boolean purchasable = storyService.isSeasonCompleted(userId, charm.getCharacterId(), charm.getSeason());
+            return builder.purchasable(purchasable).build();
+        }
+
+        Character character = characterRepository.findById(charm.getCharacterId())
+                .orElseThrow(() -> new CustomException(CharacterErrorCode.CHARACTER_NOT_FOUND));
+        return builder.character(CharmCharacterResponse.builder()
+                        .id(character.getId())
+                        .name(character.getName())
+                        .personality(character.getPersonality())
+                        .intro(character.getIntro())
+                        .build())
                 .build();
     }
 }
