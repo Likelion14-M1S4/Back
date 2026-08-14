@@ -13,7 +13,8 @@ public enum GlobalErrorCode implements BaseErrorCode {
     RESOURCE_NOT_FOUND("G002", "요청한 리소스를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     INTERNAL_SERVER_ERROR("G003", "서버 내부 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     METHOD_NOT_ALLOWED("G004", "지원하지 않는 HTTP 메서드입니다.", HttpStatus.METHOD_NOT_ALLOWED),
-    INVALID_JSON_FORMAT("G005", "요청 본문의 JSON 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST);
+    INVALID_JSON_FORMAT("G005", "요청 본문의 JSON 형식이 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+    FILE_TOO_LARGE("G007", "업로드 파일 용량이 너무 큽니다. (최대 10MB)", HttpStatus.PAYLOAD_TOO_LARGE);
 
     private final String code;
     private final String message;
