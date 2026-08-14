@@ -3,6 +3,7 @@ package com.meisterbear.domain.auth.service;
 import com.meisterbear.domain.auth.client.KakaoClient;
 import com.meisterbear.domain.auth.client.KakaoUserResponse;
 import com.meisterbear.domain.auth.dto.response.LoginResponse;
+import com.meisterbear.domain.auth.dto.response.TokenResponse;
 import com.meisterbear.domain.auth.exception.AuthErrorCode;
 import com.meisterbear.domain.user.entity.Role;
 import com.meisterbear.domain.user.entity.User;
@@ -55,6 +56,31 @@ public class AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .isNewUser(isNewUser)
+                .build();
+    }
+
+    // 토큰 재발급(rotate). refresh 토큰을 검증하고 DB에 저장된 값과 일치할 때만 새 access+refresh를 발급한다.
+    // DB 값과 대조하므로 로그아웃(refresh null)했거나 더 최근 로그인/재발급으로 rotate된 옛 토큰은 거부된다(단일 세션).
+    @Transactional
+    public TokenResponse reissue(String refreshToken) {
+        if (!jwtProvider.validateRefreshToken(refreshToken)) {
+            throw new CustomException(AuthErrorCode.INVALID_REFRESH_TOKEN);
+        }
+        User user = userRepository.findById(jwtProvider.getUserId(refreshToken))
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_REFRESH_TOKEN));
+        if (!refreshToken.equals(user.getRefreshToken())) {
+            throw new CustomException(AuthErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        String newAccessToken = jwtProvider.createAccessToken(userDetails);
+        String newRefreshToken = jwtProvider.createRefreshToken(userDetails);
+        user.updateRefreshToken(newRefreshToken);
+
+        log.info("[AuthService] 토큰 재발급 완료 - userId={}", user.getId());
+        return TokenResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
                 .build();
     }
 

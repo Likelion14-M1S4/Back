@@ -1,7 +1,9 @@
 package com.meisterbear.domain.auth.controller;
 
 import com.meisterbear.domain.auth.dto.request.KakaoLoginRequest;
+import com.meisterbear.domain.auth.dto.request.TokenReissueRequest;
 import com.meisterbear.domain.auth.dto.response.LoginResponse;
+import com.meisterbear.domain.auth.dto.response.TokenResponse;
 import com.meisterbear.domain.auth.service.AuthService;
 import com.meisterbear.global.common.BaseResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -66,5 +68,46 @@ public class AuthController {
     public BaseResponse<LoginResponse> kakaoLogin(@Valid @RequestBody KakaoLoginRequest request) {
         LoginResponse response = authService.kakaoLogin(request.getKakaoAccessToken());
         return BaseResponse.success("로그인 성공", response);
+    }
+
+    @Operation(
+            summary = "토큰 재발급",
+            description = """
+                    리프레시 토큰으로 새 accessToken/refreshToken을 발급한다(rotate).
+
+                    - refresh 토큰은 DB 저장값과 대조하며, 로그아웃했거나 더 최근 로그인/재발급으로 갱신된 옛 토큰은 거부된다(단일 세션).
+                    - 응답으로 **access와 refresh를 둘 다** 새로 내려주므로 프론트는 둘 다 교체 저장한다.
+                    - 이 API는 인증이 필요 없다(만료된 access 대신 refresh로 재발급).""")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "토큰 재발급 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "재발급 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "토큰 재발급 성공",
+                                      "data": {
+                                        "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+                                        "refreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "401", description = "유효하지 않은 리프레시 토큰",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "리프레시 토큰 오류", value = """
+                                    {
+                                      "success": false,
+                                      "code": "AUTH401",
+                                      "message": "유효하지 않은 리프레시 토큰입니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @PostMapping("/refresh")
+    public BaseResponse<TokenResponse> reissue(@Valid @RequestBody TokenReissueRequest request) {
+        TokenResponse response = authService.reissue(request.getRefreshToken());
+        return BaseResponse.success("토큰 재발급 성공", response);
     }
 }

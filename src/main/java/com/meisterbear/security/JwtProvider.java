@@ -67,6 +67,16 @@ public class JwtProvider {
         }
     }
 
+    // 서명·만료 검증 + Refresh Token 타입 확인 (토큰 재발급 시 사용)
+    public boolean validateRefreshToken(String token) {
+        try {
+            Claims claims = extractClaims(token);
+            return REFRESH_TOKEN_TYPE.equals(claims.get("type", String.class));
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public Long getUserId(String token) {
         return Long.valueOf(extractClaims(token).getSubject());
     }
