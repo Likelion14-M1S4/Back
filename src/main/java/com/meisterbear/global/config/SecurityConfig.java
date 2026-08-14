@@ -1,5 +1,6 @@
 package com.meisterbear.global.config;
 
+import com.meisterbear.security.JwtAuthenticationEntryPoint;
 import com.meisterbear.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +22,7 @@ public class SecurityConfig {
 
     private final CorsConfigurationSource corsConfigurationSource;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -33,13 +35,10 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/stories/**").permitAll() // TODO: 로그인 구현되면 제거
-                        .requestMatchers("/api/charms/**").permitAll() // TODO: 로그인 구현되면 제거
-                        .requestMatchers("/api/users/**").permitAll() // TODO: 로그인 구현되면 제거
-                        .requestMatchers("/api/wishlist/**").permitAll() // TODO: 로그인 구현되면 제거
-                        .requestMatchers("/api/chat/**").permitAll() // TODO: 로그인 구현되면 제거
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
+                .exceptionHandling(handler ->
+                        handler.authenticationEntryPoint(jwtAuthenticationEntryPoint))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

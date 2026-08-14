@@ -26,9 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/users")
 public class UserController {
 
-    // TODO: 로그인(JWT 발급) 구현되면 이 상수와 SecurityConfig의 permitAll("/api/users/**") 함께 제거
-    private static final Long TEMP_TEST_USER_ID = 1L;
-
     private final UserService userService;
 
     @Operation(
@@ -65,8 +62,7 @@ public class UserController {
     })
     @GetMapping("/me")
     public BaseResponse<UserResponse> findMe(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
-        UserResponse response = userService.findMe(userId);
+        UserResponse response = userService.findMe(userDetails.getUser().getId());
         return BaseResponse.success(response);
     }
 
@@ -138,8 +134,7 @@ public class UserController {
     public BaseResponse<UserResponse> updateMe(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody UpdateUserRequest request) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
-        UserResponse response = userService.updateMe(userId, request);
+        UserResponse response = userService.updateMe(userDetails.getUser().getId(), request);
         return BaseResponse.success(response);
     }
 }

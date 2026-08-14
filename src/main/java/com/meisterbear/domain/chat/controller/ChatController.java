@@ -33,9 +33,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/chat")
 public class ChatController {
 
-    // TODO: 로그인(JWT 발급) 구현되면 이 상수와 SecurityConfig의 permitAll("/api/chat/**") 함께 제거
-    private static final Long TEMP_TEST_USER_ID = 1L;
-
     private final ChatService chatService;
 
     @Operation(
@@ -90,7 +87,7 @@ public class ChatController {
     public BaseResponse<ChatEntryResponse> findEntry(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long characterId) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         ChatEntryResponse response = chatService.findEntry(userId, characterId);
         return BaseResponse.success(response);
     }
@@ -132,7 +129,7 @@ public class ChatController {
     public BaseResponse<ChatMessageResultResponse> sendMessage(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody SendChatMessageRequest request) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         ChatMessageResultResponse response = chatService.sendMessage(userId, request);
         return BaseResponse.success(response);
     }
@@ -188,7 +185,7 @@ public class ChatController {
             @RequestParam Long characterId,
             @RequestParam(required = false) String history,
             @RequestPart MultipartFile image) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         ChatMessageResultResponse response = chatService.inspect(userId, characterId, history, image);
         return BaseResponse.success(response);
     }

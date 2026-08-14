@@ -28,9 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/charms")
 public class CharmController {
 
-    // TODO: 로그인(JWT 발급) 구현되면 이 상수와 SecurityConfig의 permitAll("/api/charms/**") 함께 제거
-    private static final Long TEMP_TEST_USER_ID = 1L;
-
     private final CharmService charmService;
 
     @Operation(
@@ -114,7 +111,7 @@ public class CharmController {
     @GetMapping("/owned")
     public BaseResponse<OwnedCharmListResponse> findOwnedCharms(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         OwnedCharmListResponse response = charmService.findOwnedCharms(userId);
         return BaseResponse.success(response);
     }
@@ -167,7 +164,7 @@ public class CharmController {
     @GetMapping("/purchasable")
     public BaseResponse<PurchasableCharmListResponse> findPurchasableCharms(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         PurchasableCharmListResponse response = charmService.findPurchasableCharms(userId);
         return BaseResponse.success(response);
     }
@@ -245,7 +242,7 @@ public class CharmController {
     public BaseResponse<CharmDetailResponse> findCharmDetail(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long charmId) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         CharmDetailResponse response = charmService.findCharmDetail(userId, charmId);
         return BaseResponse.success(response);
     }
@@ -301,7 +298,7 @@ public class CharmController {
     public BaseResponse<CharmRecommendationResponse> findCharmRecommendations(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long charmId) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         CharmRecommendationResponse response = charmService.findCharmRecommendations(userId, charmId);
         return BaseResponse.success(response);
     }
