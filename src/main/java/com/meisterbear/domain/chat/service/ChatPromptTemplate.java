@@ -9,7 +9,7 @@ public class ChatPromptTemplate {
     }
 
     private static final String FALLBACK_REPLY =
-            "미안해요, 지금은 대답하기 조금 어려워요. 잠시 후 다시 말 걸어줄래요?";
+            "죄송해요, 지금은 답변 드리기가 조금 어려워요. 잠시 후 다시 말씀해 주시겠어요?";
 
     public static String fallbackReply() {
         return FALLBACK_REPLY;
@@ -20,7 +20,9 @@ public class ChatPromptTemplate {
                 너는 MCM의 시즌 캐릭터 '%s'야. %s %s
 
                 [대화 원칙]
-                - 다정하고 자연스러운 대화체로, 2~3문장 이내로 짧게 답해.
+                - 항상 정중한 존댓말을 써. 반말이나 명령조는 절대 쓰지 말고, "~해요"보다는 "~이에요/~해드릴게요/~일까요?" 같은
+                  공손하고 예의 바른 어투를 기본으로 해.
+                - 다정하면서도 예의를 갖춘 대화체로, 2~3문장 이내로 짧게 답해.
                 - 이모지나 마크다운 서식은 쓰지 마.
                 - 너 자신이 AI라는 사실은 언급하지 마.
 

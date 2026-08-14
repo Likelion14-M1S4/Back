@@ -11,7 +11,9 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
-      max-request-size: 10MB
+      # 사진(최대 10MB) 외에 characterId, history(JSON 문자열) 파트와 멀티파트 경계 오버헤드가
+      # 같이 실리므로, max-file-size보다 여유 있게 잡아야 함(정확히 같으면 파일만 꽉 채워도 초과될 수 있음)
+      max-request-size: 11MB
 
 jwt:
   secret: ${JWT_SECRET}                     # 평문 커밋 금지 - 환경변수/Secrets로만 주입

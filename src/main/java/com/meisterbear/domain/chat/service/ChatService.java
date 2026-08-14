@@ -26,17 +26,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+// 클래스 레벨 @Transactional을 두지 않는다 - sendMessage/inspect는 OpenAI 호출(수 초까지 걸릴 수 있음)을 포함하는데,
+// 트랜잭션으로 감싸면 그 시간 내내 DB 커넥션을 붙들고 있게 된다. 캐릭터 조회 같은 개별 DB 조회는
+// Spring Data JPA가 리포지토리 메서드 단위로 자체 트랜잭션을 열어주므로 별도 래핑 없이도 동작한다.
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class ChatService {
 
     // 진입 화면에 항상 고정으로 노출되는 대화 시작 선택지 - care를 고르면 프론트가 이후 사진 업로드를 /inspector로 보냄
     private static final List<StarterChoiceResponse> STARTER_CHOICES = List.of(
             StarterChoiceResponse.builder().id(1L).label("제품이 오염됐어").tagName("care").build(),
-            StarterChoiceResponse.builder().id(2L).label("이 제품에 대해 알려줘").tagName("product").build(),
-            StarterChoiceResponse.builder().id(3L).label("너에 대해 알고싶어").tagName("character").build()
+            StarterChoiceResponse.builder().id(2L).label("너에 대해 알고싶어").tagName("character").build()
     );
 
     private final CharacterRepository characterRepository;
@@ -46,6 +47,7 @@ public class ChatService {
     private final OpenAiClient openAiClient;
     private final ObjectMapper objectMapper;
 
+    @Transactional(readOnly = true)
     public ChatEntryResponse findEntry(Long userId, Long characterId) {
         Character character = resolveOwnedCharacter(userId, characterId);
 

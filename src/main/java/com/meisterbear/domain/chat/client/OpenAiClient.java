@@ -1,11 +1,14 @@
 package com.meisterbear.domain.chat.client;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -13,14 +16,22 @@ import org.springframework.web.client.RestClient;
 @Component
 public class OpenAiClient {
 
+    // 커넥션이 안 맺어지거나 응답이 안 오는 상황에서 요청 스레드가 무한정 잡혀있지 않도록 명시적 타임아웃을 둔다
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
+
     private final RestClient restClient;
     private final String model;
 
     public OpenAiClient(@Value("${openai.api-key}") String apiKey, @Value("${openai.model}") String model) {
         this.model = model;
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build());
+        requestFactory.setReadTimeout(READ_TIMEOUT);
         this.restClient = RestClient.builder()
                 .baseUrl("https://api.openai.com/v1")
                 .defaultHeader("Authorization", "Bearer " + apiKey)
+                .requestFactory(requestFactory)
                 .build();
     }
 

@@ -22,6 +22,8 @@ public class ChatEntryResponse {
     @Schema(description = "유저 닉네임이 반영된 인사말", example = "안녕하세요, 박세은님. 어떤 얘기를 나눠볼까요?")
     private String greeting;
 
-    @Schema(description = "대화 시작 선택지 3개 (고정값)")
+    @Schema(description = "대화 시작 선택지 2개 (고정값)",
+            example = "[{\"id\":1,\"label\":\"제품이 오염됐어\",\"tagName\":\"care\"},"
+                    + "{\"id\":2,\"label\":\"너에 대해 알고싶어\",\"tagName\":\"character\"}]")
     private List<StarterChoiceResponse> starterChoices;
 }

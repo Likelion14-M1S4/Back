@@ -36,7 +36,7 @@ public class StoryController {
     private final StoryService storyService;
 
     @Operation(
-            summary = "스토리 챕터 조회",
+            summary = "스토리 챕터 목록 조회",
             description = "챕터 목록과 유저의 진행 상태를 unlock_order 순으로 반환한다. "
                     + "currentSeason은 유저가 가장 최근 등록한 제품의 캐릭터를 기준으로 판단하며, "
                     + "등록된 제품이 없으면 currentSeason은 null, pastSeasons는 빈 배열로 응답한다.")
@@ -115,7 +115,7 @@ public class StoryController {
 
     @Operation(
             summary = "특정 챕터의 전체 내용 조회",
-            description = "특정 챕터의 장면 목록과 마지막 질문을 반환한다. 잠긴 챕터를 조회하면 403을 반환한다.")
+            description = "특정 챕터의 장면 목록과 마지막 질문을 반환한다. 잠긴 챕터를 조회하면 403을     반환한다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "챕터 상세 조회 성공",
                     content = @Content(mediaType = "application/json",

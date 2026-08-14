@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,7 +41,7 @@ public class ChatController {
     @Operation(
             summary = "채팅 진입 화면 조회",
             description = "제품 상세의 '캐릭터와 대화' 버튼으로 채팅 화면에 진입할 때 호출한다. 동행 정보, 유저 닉네임이 반영된 인사말, "
-                    + "대화 시작 선택지 3개를 반환한다. 대화 기록은 저장하지 않으므로 이 API는 매번 같은 초기 상태를 반환하며, "
+                    + "대화 시작 선택지 2개를 반환한다. 대화 기록은 저장하지 않으므로 이 API는 매번 같은 초기 상태를 반환하며, "
                     + "이후 대화는 POST /api/chat/messages로 이어진다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "채팅 진입 화면 조회 성공",
@@ -58,8 +59,7 @@ public class ChatController {
                                         "greeting": "안녕하세요, 박세은님. 어떤 얘기를 나눠볼까요?",
                                         "starterChoices": [
                                           { "id": 1, "label": "제품이 오염됐어", "tagName": "care" },
-                                          { "id": 2, "label": "이 제품에 대해 알려줘", "tagName": "product" },
-                                          { "id": 3, "label": "너에 대해 알고싶어", "tagName": "character" }
+                                          { "id": 2, "label": "너에 대해 알고싶어", "tagName": "character" }
                                         ]
                                       }
                                     }
@@ -131,7 +131,7 @@ public class ChatController {
     @PostMapping("/messages")
     public BaseResponse<ChatMessageResultResponse> sendMessage(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestBody SendChatMessageRequest request) {
+            @Valid @RequestBody SendChatMessageRequest request) {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         ChatMessageResultResponse response = chatService.sendMessage(userId, request);
         return BaseResponse.success(response);
