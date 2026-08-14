@@ -37,6 +37,7 @@ public class User extends BaseTimeEntity {
     @Column(name = "refresh_token")
     private String refreshToken;
 
+    @Column(unique = true)
     private String email;
 
     private String phone;
