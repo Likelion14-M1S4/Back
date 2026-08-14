@@ -6,6 +6,7 @@ import com.meisterbear.domain.auth.dto.response.LoginResponse;
 import com.meisterbear.domain.auth.dto.response.TokenResponse;
 import com.meisterbear.domain.auth.service.AuthService;
 import com.meisterbear.global.common.BaseResponse;
+import com.meisterbear.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -109,5 +111,42 @@ public class AuthController {
     public BaseResponse<TokenResponse> reissue(@Valid @RequestBody TokenReissueRequest request) {
         TokenResponse response = authService.reissue(request.getRefreshToken());
         return BaseResponse.success("토큰 재발급 성공", response);
+    }
+
+    @Operation(
+            summary = "로그아웃",
+            description = """
+                    로그인한 유저의 리프레시 토큰을 무효화한다.
+
+                    - 이후 그 refresh 토큰으로는 재발급이 되지 않는다.
+                    - access 토큰은 stateless라 만료(60분)까지 유효하므로, 프론트는 로컬 저장 토큰(access/refresh)을 함께 삭제한다.""")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "로그아웃 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "로그아웃 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "로그아웃 성공",
+                                      "data": null
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "인증 필요", value = """
+                                    {
+                                      "success": false,
+                                      "code": "AUTH401",
+                                      "message": "인증이 필요합니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @PostMapping("/logout")
+    public BaseResponse<Void> logout(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        authService.logout(userDetails.getUser().getId());
+        return BaseResponse.success("로그아웃 성공", null);
     }
 }

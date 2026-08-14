@@ -84,6 +84,15 @@ public class AuthService {
                 .build();
     }
 
+    // 로그아웃. refresh 토큰을 무효화(null)해 이후 재발급을 막는다. access 토큰은 만료(60분)까지 유효하다(stateless).
+    @Transactional
+    public void logout(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.UNAUTHORIZED));
+        user.clearRefreshToken();
+        log.info("[AuthService] 로그아웃 완료 - userId={}", userId);
+    }
+
     // 토큰으로 카카오 사용자 정보를 조회. 4xx(토큰 무효)와 5xx(카카오 장애)를 각각 AuthErrorCode로 변환한다
     private KakaoUserResponse fetchKakaoUser(String kakaoAccessToken) {
         KakaoUserResponse kakaoUser;
