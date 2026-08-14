@@ -56,7 +56,7 @@ public class CharmService {
     public CharmListResponse findAllCharms() {
         List<Charm> charms = charmRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
         if (charms.isEmpty()) {
-            log.info("[CharmService] 참 목록 조회 완료(참 없음)");
+            log.info("[CharmService] 참 목록 조회 완료(참 없음) - count=0");
             return CharmListResponse.empty();
         }
 
