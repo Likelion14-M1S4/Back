@@ -16,7 +16,7 @@ public class StoryCompleteResultResponse {
 
     @JsonProperty("isDone")
     @Schema(description = "user_story_progress.is_done", example = "true")
-    private boolean isDone;
+    private boolean done;
 
     @Schema(description = "user_story_progress.read_at", example = "2026-08-13T13:20:00")
     private LocalDateTime readAt;
@@ -24,7 +24,7 @@ public class StoryCompleteResultResponse {
     @JsonProperty("isSeasonCompleted")
     @Schema(description = "이 챕터가 속한 시즌의 전체 챕터를 이 유저가 완주했는지 여부 (true면 프론트에서 시즌 완료 화면 노출)",
             example = "false")
-    private boolean isSeasonCompleted;
+    private boolean seasonCompleted;
 
     @Schema(description = "character.name (시즌 완료 화면 문구에 사용, isSeasonCompleted=true일 때만 의미 있음)",
             example = "비세토스 라이언")
