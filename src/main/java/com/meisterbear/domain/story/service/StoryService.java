@@ -8,11 +8,7 @@ import com.meisterbear.domain.character.repository.CharacterRepository;
 import com.meisterbear.domain.character.repository.CollectionRepository;
 import com.meisterbear.domain.product.entity.Product;
 import com.meisterbear.domain.product.repository.ProductRepository;
-import com.meisterbear.domain.story.dto.response.ChoiceResponse;
-import com.meisterbear.domain.story.dto.response.StoryChoiceResultResponse;
 import com.meisterbear.domain.story.dto.response.CurrentSeasonResponse;
-import com.meisterbear.domain.story.dto.response.PastSeasonResponse;
-import com.meisterbear.domain.story.dto.response.QuestionResponse;
 import com.meisterbear.domain.story.dto.response.SceneResponse;
 import com.meisterbear.domain.story.dto.response.StoryCompleteResultResponse;
 import com.meisterbear.domain.story.dto.response.StoryDetailResponse;
@@ -110,21 +106,13 @@ public class StoryService {
                     return progress != null && progress.isDone();
                 });
 
-        List<PastSeasonResponse> pastSeasons = seasons.stream()
-                .filter(season -> !season.equals(currentSeasonName))
-                .map(season -> toPastSeasonResponse(season, storiesBySeason.get(season)))
-                .toList();
-
         log.info("[StoryService] 스토리 목록 조회 완료 - userId={}, currentSeason={}", userId, currentSeasonName);
         return StoryListResponse.builder()
                 .currentSeason(CurrentSeasonResponse.builder()
                         .season(currentSeasonName)
-                        .characterName(character.getName())
-                        .characterImgUrl(character.getImgUrl())
                         .stories(storyResponses)
-                        .isAllCompleted(allCompleted)
+                        .allCompleted(allCompleted)
                         .build())
-                .pastSeasons(pastSeasons)
                 .build();
     }
 
@@ -138,41 +126,16 @@ public class StoryService {
 
         UserStoryProgress progress = userStoryProgressRepository.findByUserIdAndStoryId(userId, storyId)
                 .orElse(null);
-        Character character = resolveCharacter(story.getCharacterId());
 
         log.info("[StoryService] 챕터 상세 조회 완료 - userId={}, storyId={}", userId, storyId);
         return StoryDetailResponse.builder()
                 .id(story.getId())
                 .title(story.getTitle())
                 .unlockOrder(story.getUnlockOrder())
-                .isDone(progress != null && progress.isDone())
+                .done(progress != null && progress.isDone())
                 .readAt(progress != null ? progress.getReadAt() : null)
                 .scenes(parseScenes(story.getScenes()))
-                .question(parseQuestion(story.getQuestions()))
-                .isSeasonCompleted(isSeasonCompleted(userId, story))
-                .characterName(character.getName())
-                .characterImgUrl(character.getImgUrl())
-                .build();
-    }
-
-    // 선택지마다 연결된 nextScenes가 다르므로, 고른 선택지에 따라 이어지는 장면이 갈라진다
-    public StoryChoiceResultResponse selectChoice(Long userId, Long storyId, Long choiceId) {
-        Story story = storyRepository.findById(storyId)
-                .orElseThrow(() -> new CustomException(StoryErrorCode.STORY_NOT_FOUND));
-
-        if (isLocked(userId, story)) {
-            throw new CustomException(StoryErrorCode.STORY_LOCKED);
-        }
-
-        JsonNode choice = resolveChoice(story.getQuestions(), choiceId);
-        String tagName = choice.path("tagName").asText(null);
-        List<SceneResponse> nextScenes = parseScenes(choice.path("nextScenes"));
-
-        log.info("[StoryService] 챕터 선택 완료 - userId={}, storyId={}, choiceId={}", userId, storyId, choiceId);
-        return StoryChoiceResultResponse.builder()
-                .storyId(storyId)
-                .tagName(tagName)
-                .scenes(nextScenes)
+                .seasonCompleted(isSeasonCompleted(userId, story))
                 .build();
     }
 
@@ -195,35 +158,12 @@ public class StoryService {
         log.info("[StoryService] 챕터 완료 처리 - userId={}, storyId={}", userId, storyId);
         return StoryCompleteResultResponse.builder()
                 .storyId(storyId)
-                .isDone(progress.isDone())
+                .done(progress.isDone())
                 .readAt(progress.getReadAt())
-                .isSeasonCompleted(isSeasonCompleted(userId, story))
+                .seasonCompleted(isSeasonCompleted(userId, story))
                 .characterName(character.getName())
                 .characterImgUrl(character.getImgUrl())
                 .build();
-    }
-
-    // questions[0].choices 중 choiceId와 일치하는 항목을 반환 (유효성 검증 겸함)
-    private JsonNode resolveChoice(String questionsJson, Long choiceId) {
-        if (questionsJson == null || questionsJson.isBlank()) {
-            throw new CustomException(StoryErrorCode.INVALID_CHOICE);
-        }
-        try {
-            JsonNode questions = objectMapper.readTree(questionsJson);
-            if (!questions.isArray() || questions.isEmpty()) {
-                throw new CustomException(StoryErrorCode.INVALID_CHOICE);
-            }
-            JsonNode question = questions.get(0);
-            return StreamSupport.stream(question.path("choices").spliterator(), false)
-                    .filter(choice -> choice.path("id").asLong() == choiceId)
-                    .findFirst()
-                    .orElseThrow(() -> new CustomException(StoryErrorCode.INVALID_CHOICE));
-        } catch (CustomException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("[StoryService] questions JSON 파싱 실패 - {}", e.getMessage());
-            throw new CustomException(StoryErrorCode.INVALID_CHOICE);
-        }
     }
 
     // 1번 챕터는 항상 해금, 그 외는 직전 챕터를 이 유저가 완주했는지로 판단
@@ -266,33 +206,6 @@ public class StoryService {
                         .build())
                 .sorted(Comparator.comparing(SceneResponse::getOrder))
                 .toList();
-    }
-
-    // 챕터당 질문은 1개만 사용 (questions 배열의 첫 번째 요소)
-    private QuestionResponse parseQuestion(String questionsJson) {
-        if (questionsJson == null || questionsJson.isBlank()) {
-            return null;
-        }
-        try {
-            JsonNode questions = objectMapper.readTree(questionsJson);
-            if (!questions.isArray() || questions.isEmpty()) {
-                return null;
-            }
-            JsonNode question = questions.get(0);
-            List<ChoiceResponse> choices = StreamSupport.stream(question.path("choices").spliterator(), false)
-                    .map(choice -> ChoiceResponse.builder()
-                            .id(choice.path("id").asLong())
-                            .label(choice.path("label").asText(null))
-                            .build())
-                    .toList();
-            return QuestionResponse.builder()
-                    .question(question.path("question").asText(null))
-                    .choices(choices)
-                    .build();
-        } catch (Exception e) {
-            log.warn("[StoryService] questions JSON 파싱 실패 - {}", e.getMessage());
-            return null;
-        }
     }
 
     private Character resolveCharacter(Long characterId) {
@@ -371,8 +284,8 @@ public class StoryService {
                 .id(story.getId())
                 .title(story.getTitle())
                 .unlockOrder(story.getUnlockOrder())
-                .isLocked(locked)
-                .isDone(done)
+                .locked(locked)
+                .done(done)
                 .readAt(progress != null ? progress.getReadAt() : null)
                 .teaser(done ? null : extractFirstSceneContent(story.getScenes()))
                 .thumbnailUrl(story.getThumbnailUrl())
@@ -399,15 +312,4 @@ public class StoryService {
         }
     }
 
-    private PastSeasonResponse toPastSeasonResponse(String season, List<Story> seasonStories) {
-        String thumbnailUrl = seasonStories.stream()
-                .filter(story -> story.getUnlockOrder() == 1)
-                .map(Story::getThumbnailUrl)
-                .findFirst()
-                .orElse(seasonStories.get(0).getThumbnailUrl());
-        return PastSeasonResponse.builder()
-                .season(season)
-                .thumbnailUrl(thumbnailUrl)
-                .build();
-    }
 }
