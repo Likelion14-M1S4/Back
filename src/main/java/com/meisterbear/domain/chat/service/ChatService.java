@@ -1,6 +1,11 @@
 package com.meisterbear.domain.chat.service;
 
+import com.meisterbear.domain.chat.client.ChatTurn;
+import com.meisterbear.domain.chat.client.OpenAiClient;
+import com.meisterbear.domain.chat.dto.request.ChatHistoryMessage;
+import com.meisterbear.domain.chat.dto.request.SendChatMessageRequest;
 import com.meisterbear.domain.chat.dto.response.ChatEntryResponse;
+import com.meisterbear.domain.chat.dto.response.ChatMessageResultResponse;
 import com.meisterbear.domain.chat.dto.response.StarterChoiceResponse;
 import com.meisterbear.domain.chat.exception.ChatErrorCode;
 import com.meisterbear.domain.character.entity.Character;
@@ -33,16 +38,10 @@ public class ChatService {
     private final CharacterRepository characterRepository;
     private final CollectionRepository collectionRepository;
     private final UserRepository userRepository;
+    private final OpenAiClient openAiClient;
 
     public ChatEntryResponse findEntry(Long userId, Long characterId) {
-        Character character = characterRepository.findById(characterId)
-                .orElseThrow(() -> new CustomException(ChatErrorCode.CHARACTER_NOT_FOUND));
-
-        boolean owned = collectionRepository.existsByUserIdAndCharacterIdAndStatus(
-                userId, characterId, CollectionStatus.OWNED);
-        if (!owned) {
-            throw new CustomException(ChatErrorCode.CHARACTER_NOT_OWNED);
-        }
+        Character character = resolveOwnedCharacter(userId, characterId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
@@ -55,5 +54,51 @@ public class ChatService {
                 .greeting("안녕하세요, " + user.getNickname() + "님. 어떤 얘기를 나눠볼까요?")
                 .starterChoices(STARTER_CHOICES)
                 .build();
+    }
+
+    // AI 호출이 실패하거나 지연돼도 오류를 던지지 않고 캐릭터 톤 대체 문구로 항상 200을 반환한다
+    public ChatMessageResultResponse sendMessage(Long userId, SendChatMessageRequest request) {
+        Character character = resolveOwnedCharacter(userId, request.getCharacterId());
+
+        String reply;
+        try {
+            String systemPrompt = ChatPromptTemplate.systemPrompt(character);
+            List<ChatTurn> history = toChatTurns(request.getHistory());
+            reply = openAiClient.chat(systemPrompt, history, request.getMessage());
+        } catch (Exception e) {
+            log.warn("[ChatService] AI 응답 생성 실패 - userId={}, characterId={}, error={}",
+                    userId, request.getCharacterId(), e.getMessage());
+            reply = ChatPromptTemplate.fallbackReply();
+        }
+
+        log.info("[ChatService] 대화 처리 완료 - userId={}, characterId={}", userId, request.getCharacterId());
+        return ChatMessageResultResponse.builder()
+                .characterId(character.getId())
+                .reply(reply)
+                .build();
+    }
+
+    private Character resolveOwnedCharacter(Long userId, Long characterId) {
+        Character character = characterRepository.findById(characterId)
+                .orElseThrow(() -> new CustomException(ChatErrorCode.CHARACTER_NOT_FOUND));
+
+        boolean owned = collectionRepository.existsByUserIdAndCharacterIdAndStatus(
+                userId, characterId, CollectionStatus.OWNED);
+        if (!owned) {
+            throw new CustomException(ChatErrorCode.CHARACTER_NOT_OWNED);
+        }
+        return character;
+    }
+
+    // history의 role(USER/CHARACTER)을 OpenAI 표기(user/assistant)로 변환. 알 수 없는 값은 안전하게 user로 취급
+    private List<ChatTurn> toChatTurns(List<ChatHistoryMessage> history) {
+        if (history == null) {
+            return List.of();
+        }
+        return history.stream()
+                .map(turn -> "CHARACTER".equalsIgnoreCase(turn.getRole())
+                        ? ChatTurn.assistant(turn.getContent())
+                        : ChatTurn.user(turn.getContent()))
+                .toList();
     }
 }

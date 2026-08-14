@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+//유저가 어떤 제품/캐릭터를 소유했는지 추적하는 기록
 @Entity
 @Getter
 @Table(name = "collection")
