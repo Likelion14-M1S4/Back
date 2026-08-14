@@ -1,3 +1,8 @@
+server:
+  # 리버스 프록시(Nginx) 뒤에서 X-Forwarded-* 헤더를 신뢰 → HTTPS·원본 호스트 인식
+  # (없으면 springdoc이 서버 URL을 http로 생성해 Swagger가 mixed content로 차단됨)
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: meisterbear
