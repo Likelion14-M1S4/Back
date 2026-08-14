@@ -21,6 +21,10 @@ kakao:
   client-id: ${KAKAO_CLIENT_ID:}
   redirect-uri: ${KAKAO_REDIRECT_URI:}
 
+openai:
+  api-key: ${OPENAI_API_KEY}                # 평문 커밋 금지 - 환경변수/Secrets로만 주입
+  model: gpt-5.6-luna
+
 logging:
   level:
     root: INFO
