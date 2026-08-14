@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -148,5 +149,43 @@ public class AuthController {
     public BaseResponse<Void> logout(@AuthenticationPrincipal CustomUserDetails userDetails) {
         authService.logout(userDetails.getUser().getId());
         return BaseResponse.success("로그아웃 성공", null);
+    }
+
+    @Operation(
+            summary = "회원 탈퇴",
+            description = """
+                    로그인한 유저를 하드 삭제한다.
+
+                    - 유저 소유 데이터(컬렉션·스토리 진행·태그·위시리스트·주문)를 삭제한다.
+                    - 참 수령 기록(charm_receipt)은 매장측 기록이라 계정 연결만 해제(user_id=null)하고 보존한다.
+                    - 복구 불가.""")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "탈퇴 완료",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "탈퇴 완료", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "탈퇴 완료",
+                                      "data": null
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "인증 필요", value = """
+                                    {
+                                      "success": false,
+                                      "code": "AUTH401",
+                                      "message": "인증이 필요합니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @DeleteMapping("/withdraw")
+    public BaseResponse<Void> withdraw(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        authService.withdraw(userDetails.getUser().getId());
+        return BaseResponse.success("탈퇴 완료", null);
     }
 }

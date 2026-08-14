@@ -5,12 +5,20 @@ import com.meisterbear.domain.auth.client.KakaoUserResponse;
 import com.meisterbear.domain.auth.dto.response.LoginResponse;
 import com.meisterbear.domain.auth.dto.response.TokenResponse;
 import com.meisterbear.domain.auth.exception.AuthErrorCode;
+import com.meisterbear.domain.character.repository.CollectionRepository;
+import com.meisterbear.domain.charm.entity.CharmReceipt;
+import com.meisterbear.domain.charm.repository.CharmReceiptRepository;
+import com.meisterbear.domain.order.repository.OrderItemRepository;
+import com.meisterbear.domain.product.repository.UserTagRepository;
+import com.meisterbear.domain.story.repository.UserStoryProgressRepository;
 import com.meisterbear.domain.user.entity.Role;
 import com.meisterbear.domain.user.entity.User;
 import com.meisterbear.domain.user.repository.UserRepository;
+import com.meisterbear.domain.wishlist.repository.WishlistRepository;
 import com.meisterbear.global.exception.CustomException;
 import com.meisterbear.security.CustomUserDetails;
 import com.meisterbear.security.JwtProvider;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +39,14 @@ public class AuthService {
     private final KakaoClient kakaoClient;
     private final UserRepository userRepository;
     private final JwtProvider jwtProvider;
+
+    // 탈퇴 시 유저 연관 데이터 정리용
+    private final CollectionRepository collectionRepository;
+    private final UserStoryProgressRepository userStoryProgressRepository;
+    private final UserTagRepository userTagRepository;
+    private final WishlistRepository wishlistRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final CharmReceiptRepository charmReceiptRepository;
 
     // 카카오 소셜 로그인. 최초 로그인이면 회원 생성 후 토큰 발급, 기존 회원이면 토큰만 재발급하고 refresh를 rotate한다
     @Transactional
@@ -91,6 +107,25 @@ public class AuthService {
                 .orElseThrow(() -> new CustomException(AuthErrorCode.UNAUTHORIZED));
         user.clearRefreshToken();
         log.info("[AuthService] 로그아웃 완료 - userId={}", userId);
+    }
+
+    // 회원 탈퇴(하드 삭제). 유저 소유 데이터는 삭제하고, 매장측 수령 기록(charm_receipt)은 계정 연결만 해제해 보존한다.
+    @Transactional
+    public void withdraw(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.UNAUTHORIZED));
+
+        collectionRepository.deleteByUserId(userId);
+        userStoryProgressRepository.deleteByUserId(userId);
+        userTagRepository.deleteByUserId(userId);
+        wishlistRepository.deleteByUserId(userId);
+        orderItemRepository.deleteByUserId(userId);
+
+        List<CharmReceipt> receipts = charmReceiptRepository.findByUserId(userId);
+        receipts.forEach(CharmReceipt::detachUser);
+
+        userRepository.delete(user);
+        log.info("[AuthService] 회원 탈퇴 완료 - userId={}", userId);
     }
 
     // 토큰으로 카카오 사용자 정보를 조회. 4xx(토큰 무효)와 5xx(카카오 장애)를 각각 AuthErrorCode로 변환한다

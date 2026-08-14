@@ -10,4 +10,6 @@ public interface CollectionRepository extends JpaRepository<Collection, Long> {
     Optional<Collection> findTopByUserIdOrderByAddedAtDesc(Long userId);
 
     boolean existsByUserIdAndCharacterIdAndStatus(Long userId, Long characterId, CollectionStatus status);
+
+    void deleteByUserId(Long userId);
 }
