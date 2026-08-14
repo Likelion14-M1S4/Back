@@ -8,6 +8,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 jwt:
   secret: ${JWT_SECRET}                     # 평문 커밋 금지 - 환경변수/Secrets로만 주입

@@ -15,7 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
-//유저가 어떤 제품/캐릭터를 소유했는지 추적하는 기록
+// 유저가 어떤 제품/캐릭터를 소유했는지 LOCKED→PREVIEW→OWNED 단계로 추적하는 기록
 @Entity
 @Getter
 @Table(name = "collection")
@@ -29,7 +29,7 @@ public class Collection {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    // 캐릭터는 시즌×지역 템플릿이라 여러 유저가 공유 가능 (유니크 아님)
+    // 캐릭터는 시즌×지역 템플릿이라 여러 유저가 공유 가능
     @Column(name = "character_id", nullable = false)
     private Long characterId;
 

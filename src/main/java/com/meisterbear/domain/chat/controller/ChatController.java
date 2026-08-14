@@ -14,13 +14,17 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Chat", description = "동행 챗봇 API")
 @RestController
@@ -92,10 +96,11 @@ public class ChatController {
     }
 
     @Operation(
-            summary = "동행과 대화",
-            description = "동행과 자유롭게 대화한다. 대화 기록은 저장하지 않으므로, 맥락이 필요하면 클라이언트가 이전 대화 "
-                    + "내역(history)을 매 요청마다 같이 실어 보낸다. "
-                    + "GPT API 호출 자체가 실패 시, reply에 고정 대체 문구가 담겨 200으로 응답.")
+            summary = "챗봇 메세지 전송",
+            description = "동행과 자유롭게 대화한다. AI 호출이 실패해도 에러 없이 고정 대체 문구로 대체해 항상 200을 반환한다.\n\n"
+                    + "history: 지금까지 나눈 대화(유저 발화 + 캐릭터 답변)를 "
+                    + "[{\"role\":\"USER\",\"content\":\"...\"},{\"role\":\"CHARACTER\",\"content\":\"...\"}] 배열로 담아서 보낸다. "
+                    + "서버는 대화를 저장하지 않으므로 안 보내면 AI가 맥락을 전혀 모른다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "대화 처리 성공",
                     content = @Content(mediaType = "application/json",
@@ -129,6 +134,62 @@ public class ChatController {
             @RequestBody SendChatMessageRequest request) {
         Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
         ChatMessageResultResponse response = chatService.sendMessage(userId, request);
+        return BaseResponse.success(response);
+    }
+
+    @Operation(
+            summary = "AI 인스펙터 - 사진으로 케어 진단",
+            description = "케어 문의 중 사진을 업로드하면, AI가 사진을 보고 관찰 내용·권장 케어·매장 안내를 대화 형식(reply)으로 반환한다. "
+                    + "사진은 저장하지 않고 분석 즉시 버리며, 실패해도 소재 기준 케어 가이드로 대체해 항상 200을 반환한다.\n\n"
+                    + "history: 지금까지 나눈 대화(유저 발화 + 캐릭터 답변)를 "
+                    + "'[{\"role\":\"USER\",\"content\":\"...\"},{\"role\":\"CHARACTER\",\"content\":\"...\"}]' 형태의 "
+                    + "JSON 문자열로 담아서 보낸다. 서버는 대화를 저장하지 않으므로 안 보내면 AI가 맥락을 전혀 모른다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "케어 진단 처리 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "진단 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": {
+                                        "characterId": 1,
+                                        "reply": "어떤 이유로 생긴 얼룩인가요?"
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 캐릭터, 또는 이 유저가 아직 만나지 않은 캐릭터",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "캐릭터 없음", value = """
+                                    {
+                                      "success": false,
+                                      "code": "CHAT404",
+                                      "message": "해당 캐릭터를 찾을 수 없습니다.",
+                                      "data": null
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "413", description = "업로드 파일 용량 초과 (최대 10MB)",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "용량 초과", value = """
+                                    {
+                                      "success": false,
+                                      "code": "G007",
+                                      "message": "업로드 파일 용량이 너무 큽니다. (최대 10MB)",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @PostMapping(value = "/inspector", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public BaseResponse<ChatMessageResultResponse> inspect(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam Long characterId,
+            @RequestParam(required = false) String history,
+            @RequestPart MultipartFile image) {
+        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        ChatMessageResultResponse response = chatService.inspect(userId, characterId, history, image);
         return BaseResponse.success(response);
     }
 }

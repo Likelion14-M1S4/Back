@@ -1,5 +1,6 @@
 package com.meisterbear.domain.chat.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meisterbear.domain.chat.client.ChatTurn;
 import com.meisterbear.domain.chat.client.OpenAiClient;
 import com.meisterbear.domain.chat.dto.request.ChatHistoryMessage;
@@ -12,15 +13,18 @@ import com.meisterbear.domain.character.entity.Character;
 import com.meisterbear.domain.character.entity.CollectionStatus;
 import com.meisterbear.domain.character.repository.CharacterRepository;
 import com.meisterbear.domain.character.repository.CollectionRepository;
+import com.meisterbear.domain.product.repository.ProductRepository;
 import com.meisterbear.domain.user.entity.User;
 import com.meisterbear.domain.user.exception.UserErrorCode;
 import com.meisterbear.domain.user.repository.UserRepository;
 import com.meisterbear.global.exception.CustomException;
+import java.io.IOException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
 @Service
@@ -38,7 +42,9 @@ public class ChatService {
     private final CharacterRepository characterRepository;
     private final CollectionRepository collectionRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
     private final OpenAiClient openAiClient;
+    private final ObjectMapper objectMapper;
 
     public ChatEntryResponse findEntry(Long userId, Long characterId) {
         Character character = resolveOwnedCharacter(userId, characterId);
@@ -76,6 +82,52 @@ public class ChatService {
                 .characterId(character.getId())
                 .reply(reply)
                 .build();
+    }
+
+    // 케어 문의 - 사진을 분석해서 관찰 내용/권장 케어를 대화체로 돌려준다. 텍스트는 안 받고 사진만 받는다
+    // (직전까지 나눈 대화 맥락은 history로 이어받는다 - 대화 기록 미저장 정책이라 프론트가 매번 실어 보내야 함).
+    // history는 multipart 파트라 JSON 문자열로 받는다 - @RequestPart로 객체를 바로 받으면 Swagger 등 일부
+    // 클라이언트가 Content-Type을 application/json으로 안 붙여줘서 415가 나는 문제가 있었음.
+    // 분석이 실패해도 오류를 던지지 않고, 캐릭터가 속한 제품의 소재 기준 고정 케어 가이드로 대체해 항상 200을 반환한다.
+    public ChatMessageResultResponse inspect(Long userId, Long characterId, String historyJson,
+                                              MultipartFile image) {
+        Character character = resolveOwnedCharacter(userId, characterId);
+
+        String reply;
+        try {
+            String systemPrompt = ChatPromptTemplate.inspectorSystemPrompt(character);
+            reply = openAiClient.chatWithImage(systemPrompt, toChatTurns(parseHistory(historyJson)),
+                    image.getBytes(), image.getContentType());
+        } catch (IOException | RuntimeException e) {
+            log.warn("[ChatService] 케어 진단 실패 - userId={}, characterId={}, error={}",
+                    userId, characterId, e.getMessage());
+            reply = careGuideFallback(character);
+        }
+
+        log.info("[ChatService] 케어 진단 처리 완료 - userId={}, characterId={}", userId, characterId);
+        return ChatMessageResultResponse.builder()
+                .characterId(character.getId())
+                .reply(reply)
+                .build();
+    }
+
+    // 파싱 실패해도 예외로 전체 요청을 막지 않고, 그냥 맥락 없이(빈 히스토리) 진행한다
+    private List<ChatHistoryMessage> parseHistory(String historyJson) {
+        if (historyJson == null || historyJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readerForListOf(ChatHistoryMessage.class).readValue(historyJson);
+        } catch (IOException e) {
+            log.warn("[ChatService] history JSON 파싱 실패 - {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private String careGuideFallback(Character character) {
+        return productRepository.findById(character.getProductId())
+                .map(product -> CareGuideTemplate.guideFor(product.getMaterial()))
+                .orElseGet(() -> CareGuideTemplate.guideFor(null));
     }
 
     private Character resolveOwnedCharacter(Long userId, Long characterId) {
