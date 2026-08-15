@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 public enum AuthErrorCode implements BaseErrorCode {
 
     INVALID_KAKAO_TOKEN("AUTH401", "유효하지 않은 카카오 토큰입니다.", HttpStatus.UNAUTHORIZED),
+    INVALID_KAKAO_CODE("AUTH401", "유효하지 않은 카카오 인가 코드입니다.", HttpStatus.UNAUTHORIZED),
     INVALID_REFRESH_TOKEN("AUTH401", "유효하지 않은 리프레시 토큰입니다.", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED("AUTH401", "인증이 필요합니다.", HttpStatus.UNAUTHORIZED),
     KAKAO_SERVER_ERROR("AUTH502", "카카오 서버 통신에 실패했습니다.", HttpStatus.BAD_GATEWAY);

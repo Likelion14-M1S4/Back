@@ -34,8 +34,11 @@ public class AuthController {
     @Operation(
             summary = "카카오 로그인",
             description = """
-                    카카오 SDK로 발급받은 `kakaoAccessToken`을 받아 로그인/회원가입을 처리하고 서비스 JWT를 발급한다.
+                    카카오 인가 코드(`code`)를 받아 로그인/회원가입을 처리하고 서비스 JWT를 발급한다. (토큰 교환은 백엔드가 수행)
 
+                    - 프론트: `Kakao.Auth.authorize({redirectUri})` → 콜백으로 받은 `?code=` 값을 그대로 전달한다. 브라우저에서 토큰 교환 금지.
+                    - `redirectUri`는 authorize에 사용한 값과 동일해야 한다(카카오 앱에 등록 필수). 생략 시 서버 설정값 사용.
+                    - 인가 코드는 1회용·10분 만료라 재사용 시 401(AUTH401)이 난다.
                     - 최초 로그인이면 회원을 생성하고 `isNewUser=true`로 응답한다. (닉네임은 카카오 프로필, 이메일은 동의 시에만 저장 - 미동의면 null)
                     - accessToken(60분)/refreshToken(14일) 둘 다 응답 body로 내려주며, 프론트는 localStorage에 저장한다.
                     - 이 API는 인증이 필요 없다(Authorization 헤더 X).""")
@@ -55,21 +58,21 @@ public class AuthController {
                                       }
                                     }
                                     """))),
-            @ApiResponse(responseCode = "401", description = "유효하지 않은 카카오 토큰",
+            @ApiResponse(responseCode = "401", description = "유효하지 않은 카카오 인가 코드",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = BaseResponse.class),
-                            examples = @ExampleObject(name = "카카오 토큰 오류", value = """
+                            examples = @ExampleObject(name = "카카오 인가 코드 오류", value = """
                                     {
                                       "success": false,
                                       "code": "AUTH401",
-                                      "message": "유효하지 않은 카카오 토큰입니다.",
+                                      "message": "유효하지 않은 카카오 인가 코드입니다.",
                                       "data": null
                                     }
                                     """)))
     })
     @PostMapping("/kakao")
     public BaseResponse<LoginResponse> kakaoLogin(@Valid @RequestBody KakaoLoginRequest request) {
-        LoginResponse response = authService.kakaoLogin(request.getKakaoAccessToken());
+        LoginResponse response = authService.kakaoLogin(request.getCode(), request.getRedirectUri());
         return BaseResponse.success("로그인 성공", response);
     }
 

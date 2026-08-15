@@ -1,6 +1,7 @@
 package com.meisterbear.domain.auth.service;
 
 import com.meisterbear.domain.auth.client.KakaoClient;
+import com.meisterbear.domain.auth.client.KakaoTokenResponse;
 import com.meisterbear.domain.auth.client.KakaoUserResponse;
 import com.meisterbear.domain.auth.dto.response.LoginResponse;
 import com.meisterbear.domain.auth.dto.response.TokenResponse;
@@ -48,9 +49,11 @@ public class AuthService {
     private final OrderItemRepository orderItemRepository;
     private final CharmReceiptRepository charmReceiptRepository;
 
-    // 카카오 소셜 로그인. 최초 로그인이면 회원 생성 후 토큰 발급, 기존 회원이면 토큰만 재발급하고 refresh를 rotate한다
+    // 카카오 소셜 로그인(인가 코드 방식). 코드를 카카오 토큰으로 교환한 뒤 사용자 정보를 조회하고,
+    // 최초 로그인이면 회원 생성 후 토큰 발급, 기존 회원이면 토큰만 재발급하고 refresh를 rotate한다
     @Transactional
-    public LoginResponse kakaoLogin(String kakaoAccessToken) {
+    public LoginResponse kakaoLogin(String code, String redirectUri) {
+        String kakaoAccessToken = exchangeCodeForToken(code, redirectUri);
         KakaoUserResponse kakaoUser = fetchKakaoUser(kakaoAccessToken);
 
         Optional<User> found = userRepository.findByKakaoId(kakaoUser.id());
@@ -126,6 +129,26 @@ public class AuthService {
 
         userRepository.delete(user);
         log.info("[AuthService] 회원 탈퇴 완료 - userId={}", userId);
+    }
+
+    // 인가 코드를 카카오 액세스 토큰으로 교환. 4xx(코드 무효/만료/redirect_uri 불일치)와 5xx(카카오 장애)를 각각 AuthErrorCode로 변환한다
+    private String exchangeCodeForToken(String code, String redirectUri) {
+        KakaoTokenResponse token;
+        try {
+            token = kakaoClient.getToken(code, redirectUri);
+        } catch (HttpClientErrorException e) {
+            // 카카오는 실패 사유를 KOE 코드로 내려주므로(예: KOE320 코드 재사용) 원인 추적용으로 body를 남긴다
+            log.warn("[AuthService] 카카오 인가 코드 교환 실패 - status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new CustomException(AuthErrorCode.INVALID_KAKAO_CODE);
+        } catch (RestClientException e) {
+            log.warn("[AuthService] 카카오 서버 통신 실패 - {}", e.getMessage());
+            throw new CustomException(AuthErrorCode.KAKAO_SERVER_ERROR);
+        }
+        if (token == null || token.accessToken() == null) {
+            throw new CustomException(AuthErrorCode.INVALID_KAKAO_CODE);
+        }
+        return token.accessToken();
     }
 
     // 토큰으로 카카오 사용자 정보를 조회. 4xx(토큰 무효)와 5xx(카카오 장애)를 각각 AuthErrorCode로 변환한다
