@@ -52,9 +52,13 @@ public class Charm {
     @Column(length = 100)
     private String color;
 
+    // true면 상세 조회 시 isPurchasable(구매 가능 여부)을, false면 character(캐릭터 정보)를 채워서 응답
+    @Column(name = "is_season_limited", nullable = false)
+    private boolean seasonLimited;
+
     @Builder
     private Charm(Long storeId, Long characterId, String season, String name, String imgUrl, String description,
-                  String tagName, String collectionName, Integer price, String color) {
+                  String tagName, String collectionName, Integer price, String color, boolean seasonLimited) {
         this.storeId = storeId;
         this.characterId = characterId;
         this.season = season;
@@ -65,5 +69,6 @@ public class Charm {
         this.collectionName = collectionName;
         this.price = price;
         this.color = color;
+        this.seasonLimited = seasonLimited;
     }
 }

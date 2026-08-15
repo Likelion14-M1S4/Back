@@ -10,4 +10,6 @@ public interface UserStoryProgressRepository extends JpaRepository<UserStoryProg
     List<UserStoryProgress> findByUserIdAndStoryIdIn(Long userId, List<Long> storyIds);
 
     Optional<UserStoryProgress> findByUserIdAndStoryId(Long userId, Long storyId);
+
+    void deleteByUserId(Long userId);
 }

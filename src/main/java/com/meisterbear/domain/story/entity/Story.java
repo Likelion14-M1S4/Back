@@ -43,16 +43,9 @@ public class Story {
     @Column(columnDefinition = "json")
     private String scenes;
 
-    // 질문/선택지 목록 JSON. choices[].nextScenes는 그 선택지를 고르면 이어서 재생되는, 선택에 따라 갈라지는 장면들이다.
-    // 예: [{"id":1,"question":"...","choices":[
-    //       {"id":1,"label":"...","tagName":"...","nextScenes":[{"order":1,"imgUrl":"...","content":"..."}]}
-    //     ]}, ...]
-    @Column(columnDefinition = "json")
-    private String questions;
-
     @Builder
     private Story(Long characterId, String title, Boolean locked, Integer unlockOrder, String season,
-                  String thumbnailUrl, String scenes, String questions) {
+                  String thumbnailUrl, String scenes) {
         this.characterId = characterId;
         this.title = title;
         this.locked = locked != null ? locked : true;
@@ -60,7 +53,6 @@ public class Story {
         this.season = season;
         this.thumbnailUrl = thumbnailUrl;
         this.scenes = scenes;
-        this.questions = questions;
     }
 
     // 순서(1→2→3)에 따라 다음 챕터 해금

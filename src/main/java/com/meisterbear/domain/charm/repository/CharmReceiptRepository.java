@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CharmReceiptRepository extends JpaRepository<CharmReceipt, Long> {
 
     List<CharmReceipt> findByUserIdAndStatus(Long userId, CharmReceiptStatus status);
+
+    List<CharmReceipt> findByUserId(Long userId);
 }

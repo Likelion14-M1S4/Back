@@ -22,11 +22,11 @@ public class StoryProgressResponse {
 
     @JsonProperty("isLocked")
     @Schema(description = "이 유저 기준 잠금 여부 (직전 챕터 완주 여부로 판단)", example = "false")
-    private boolean isLocked;
+    private boolean locked;
 
     @JsonProperty("isDone")
     @Schema(description = "user_story_progress.is_done", example = "true")
-    private boolean isDone;
+    private boolean done;
 
     @Schema(description = "user_story_progress.read_at", example = "2026-08-10T11:00:00")
     private LocalDateTime readAt;

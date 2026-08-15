@@ -10,6 +10,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @Slf4j
 @RestControllerAdvice
@@ -57,6 +58,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(GlobalErrorCode.INVALID_JSON_FORMAT.getStatus())
                 .body(BaseResponse.error(GlobalErrorCode.INVALID_JSON_FORMAT.getCode(),
                         GlobalErrorCode.INVALID_JSON_FORMAT.getMessage()));
+    }
+
+    // 업로드 파일이 spring.servlet.multipart.max-file-size/max-request-size를 초과한 경우 (예: /api/chat/inspector 사진)
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<BaseResponse<Object>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        log.warn("[GlobalExceptionHandler] 업로드 파일 용량 초과 - {}", ex.getMessage());
+        return ResponseEntity.status(GlobalErrorCode.FILE_TOO_LARGE.getStatus())
+                .body(BaseResponse.error(GlobalErrorCode.FILE_TOO_LARGE.getCode(),
+                        GlobalErrorCode.FILE_TOO_LARGE.getMessage()));
     }
 
     // 예상치 못한 서버 오류 (fallback)
