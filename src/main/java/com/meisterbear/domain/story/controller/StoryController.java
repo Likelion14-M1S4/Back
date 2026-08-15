@@ -27,9 +27,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/stories")
 public class StoryController {
 
-    // TODO: 로그인(JWT 발급) 구현되면 이 상수와 SecurityConfig의 permitAll("/api/stories/**") 함께 제거
-    private static final Long TEMP_TEST_USER_ID = 1L;
-
     private final StoryService storyService;
 
     @Operation(
@@ -100,7 +97,7 @@ public class StoryController {
     })
     @GetMapping
     public BaseResponse<StoryListResponse> findStories(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         StoryListResponse response = storyService.findStories(userId);
         return BaseResponse.success(response);
     }
@@ -157,7 +154,7 @@ public class StoryController {
     public BaseResponse<StoryDetailResponse> findStoryDetail(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long storyId) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         StoryDetailResponse response = storyService.findStoryDetail(userId, storyId);
         return BaseResponse.success(response);
     }
@@ -212,7 +209,7 @@ public class StoryController {
     public BaseResponse<StoryCompleteResultResponse> completeStory(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long storyId) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         StoryCompleteResultResponse response = storyService.completeStory(userId, storyId);
         return BaseResponse.success(response);
     }

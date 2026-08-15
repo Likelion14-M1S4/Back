@@ -32,6 +32,11 @@ kakao:
   client-id: ${KAKAO_CLIENT_ID:}
   redirect-uri: ${KAKAO_REDIRECT_URI:}
 
+auth:
+  # dev 전용 /api/auth/test-token 보호용 공유 시크릿. 미설정이면 해당 엔드포인트는 비활성화(라이브 오노출 방지).
+  # 라이브(dev 프로필) 서버에는 반드시 설정하고, 프론트에도 값을 공유해야 Swagger에서 토큰 발급 가능.
+  test-token-secret: ${TEST_TOKEN_SECRET:}
+
 openai:
   api-key: ${OPENAI_API_KEY}                # 평문 커밋 금지 - 환경변수/Secrets로만 주입
   model: gpt-5.6-luna

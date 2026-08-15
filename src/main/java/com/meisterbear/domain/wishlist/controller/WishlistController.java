@@ -27,9 +27,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/wishlist")
 public class WishlistController {
 
-    // TODO: 로그인(JWT 발급) 구현되면 이 상수와 SecurityConfig의 permitAll("/api/wishlist/**") 함께 제거
-    private static final Long TEMP_TEST_USER_ID = 1L;
-
     private final WishlistService wishlistService;
 
     @Operation(
@@ -83,7 +80,7 @@ public class WishlistController {
     @GetMapping
     public BaseResponse<WishlistListResponse> findWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         WishlistListResponse response = wishlistService.findWishlist(userId);
         return BaseResponse.success(response);
     }
@@ -160,7 +157,7 @@ public class WishlistController {
     public BaseResponse<ToggleWishlistResultResponse> toggleWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody ToggleWishlistRequest request) {
-        Long userId = userDetails != null ? userDetails.getUser().getId() : TEMP_TEST_USER_ID;
+        Long userId = userDetails.getUser().getId();
         ToggleWishlistResultResponse response = wishlistService.toggleWishlist(userId, request);
         return BaseResponse.success(response);
     }
