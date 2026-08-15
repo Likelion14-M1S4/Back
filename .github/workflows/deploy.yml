@@ -58,6 +58,8 @@ jobs:
           CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
           KAKAO_CLIENT_ID: ${{ secrets.KAKAO_CLIENT_ID }}
           KAKAO_REDIRECT_URI: ${{ secrets.KAKAO_REDIRECT_URI }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          TEST_TOKEN_SECRET: ${{ secrets.TEST_TOKEN_SECRET }}
         run: |
           set -euo pipefail
 
@@ -83,6 +85,8 @@ jobs:
           CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
           KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
           KAKAO_REDIRECT_URI=${KAKAO_REDIRECT_URI}
+          OPENAI_API_KEY=${OPENAI_API_KEY}
+          TEST_TOKEN_SECRET=${TEST_TOKEN_SECRET}
           EOF
 
           # 산출물 전송
