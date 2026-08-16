@@ -22,6 +22,7 @@ import com.meisterbear.global.exception.CustomException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -62,7 +63,7 @@ public class NfcService {
                 .type(TYPE_PRODUCT)
                 .productId(product.getId())
                 .productName(product.getName())
-                .character(findCharacter(product.getId()))
+                .character(findCharacter(product))
                 .nextPath(VERIFY_NEXT_PATH)
                 .build();
     }
@@ -70,8 +71,19 @@ public class NfcService {
     // 정품 인증서 조회. uid가 있으면 그 제품의 내 구매 기록, 없으면 최근 구매 1건 기준.
     // 인증서 필드는 구매 기록(order_item)과 제품(product)에서 그대로 채운다
     public CertificateResponse getCertificate(Long userId, String uid) {
-        OrderItem order = findCertificateOrder(userId, uid);
-        Product product = productRepository.findById(order.getProductId()).orElse(null);
+        // uid 경로에서는 제품을 먼저 특정하므로, 조회한 Product를 재사용해 동일 행 중복 SELECT를 피한다
+        Product product;
+        OrderItem order;
+        if (uid != null && !uid.isBlank()) {
+            product = productRepository.findByNfcUid(uid)
+                    .orElseThrow(() -> new CustomException(NfcErrorCode.NFC_NOT_FOUND));
+            order = orderItemRepository.findFirstByUserIdAndProductIdOrderByOrderedAtDesc(userId, product.getId())
+                    .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
+        } else {
+            order = orderItemRepository.findFirstByUserIdOrderByOrderedAtDesc(userId)
+                    .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
+            product = productRepository.findById(order.getProductId()).orElse(null);
+        }
         String purchasePlace = storeRepository.findById(order.getStoreId())
                 .map(Store::getName)
                 .orElse(null);
@@ -90,20 +102,10 @@ public class NfcService {
                 .issuedAt(issuedAt.format(DATE_FORMAT))
                 .purchasedAt(formatDateTime(order.getOrderedAt()))
                 .receivedAt(formatDateTime(order.getReceivedAt()))
-                .seller(order.getSeller() != null ? order.getSeller() : CERTIFICATE_SELLER_DEFAULT)
+                .seller(order.getSeller() != null && !order.getSeller().isBlank()
+                        ? order.getSeller() : CERTIFICATE_SELLER_DEFAULT)
                 .purchasePlace(purchasePlace)
                 .build();
-    }
-
-    private OrderItem findCertificateOrder(Long userId, String uid) {
-        if (uid != null && !uid.isBlank()) {
-            Product product = productRepository.findByNfcUid(uid)
-                    .orElseThrow(() -> new CustomException(NfcErrorCode.NFC_NOT_FOUND));
-            return orderItemRepository.findFirstByUserIdAndProductIdOrderByOrderedAtDesc(userId, product.getId())
-                    .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
-        }
-        return orderItemRepository.findFirstByUserIdOrderByOrderedAtDesc(userId)
-                .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
     }
 
     // "2026.08.16 pm.03:00" - 프론트 화면이 쓰는 날짜+시간 표기 포맷 (12시간제, am/pm 소문자)
@@ -118,26 +120,36 @@ public class NfcService {
     }
 
     // 태그한 제품의 진열 매장으로 방문 이력(user_tag STORE)을 남긴다.
-    // 매장 연결이 없는 제품이면 조용히 건너뛴다 - 이력은 부가 기능이라 태그 검증 자체를 막지 않는다
+    // 매장 연결이 없는 제품이면 조용히 건너뛴다 - 이력은 부가 기능이라 태그 검증 자체를 막지 않는다.
+    // 같은 유저·제품·매장은 하루 1회만 기록한다 (재태그 시 이력 상세의 날짜 그룹에 같은 제품이 중복 노출되는 것 방지)
     private void recordStoreTag(Long userId, Product product) {
-        productStoreRepository.findFirstByProductId(product.getId())
-                .ifPresent(productStore -> userTagRepository.save(UserTag.builder()
-                        .userId(userId)
-                        .productId(product.getId())
-                        .tagType(TagType.STORE)
-                        .storeId(productStore.getStoreId())
-                        .build()));
+        productStoreRepository.findFirstByProductIdOrderByStoreIdAsc(product.getId())
+                .ifPresent(productStore -> {
+                    LocalDateTime dayStart = LocalDate.now().atStartOfDay();
+                    LocalDateTime dayEnd = dayStart.plusDays(1).minusNanos(1);
+                    boolean alreadyTaggedToday = userTagRepository
+                            .existsByUserIdAndProductIdAndStoreIdAndTagTypeAndTaggedAtBetween(
+                                    userId, product.getId(), productStore.getStoreId(), TagType.STORE,
+                                    dayStart, dayEnd);
+                    if (alreadyTaggedToday) {
+                        return;
+                    }
+                    userTagRepository.save(UserTag.builder()
+                            .userId(userId)
+                            .productId(product.getId())
+                            .tagType(TagType.STORE)
+                            .storeId(productStore.getStoreId())
+                            .build());
+                });
     }
 
     // 제품에 연결된 캐릭터. 없으면 null (캐릭터 없는 제품도 태그/인증서는 정상 동작해야 한다)
-    private NfcCharacterResponse findCharacter(Long productId) {
-        Character character = characterRepository.findByProductId(productId).orElse(null);
+    private NfcCharacterResponse findCharacter(Product taggedProduct) {
+        Character character = characterRepository.findByProductId(taggedProduct.getId()).orElse(null);
         if (character == null) {
             return null;
         }
-        String collectionName = charmRepository.findFirstByCharacterId(character.getId())
-                .map(Charm::getCollectionName)
-                .orElse(null);
+        String collectionName = resolveCollectionName(character.getId(), taggedProduct.getSeason());
         return NfcCharacterResponse.builder()
                 .id(character.getId())
                 .name(character.getName())
@@ -145,5 +157,20 @@ public class NfcService {
                 .description(character.getIntro())
                 .imageUrl(character.getImgUrl())
                 .build();
+    }
+
+    // 컬렉션명: 태그한 제품의 시즌과 일치하는 참을 우선하고(시즌별로 컬렉션명이 다를 수 있음),
+    // 시즌이 없거나 해당 시즌 참이 없으면 시즌 무관 첫 참으로 폴백한다
+    private String resolveCollectionName(Long characterId, String season) {
+        if (season != null && !season.isBlank()) {
+            Optional<Charm> seasonal =
+                    charmRepository.findFirstByCharacterIdAndSeasonOrderByIdAsc(characterId, season);
+            if (seasonal.isPresent()) {
+                return seasonal.get().getCollectionName();
+            }
+        }
+        return charmRepository.findFirstByCharacterIdOrderByIdAsc(characterId)
+                .map(Charm::getCollectionName)
+                .orElse(null);
     }
 }
