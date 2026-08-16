@@ -60,9 +60,10 @@ public class StoreService {
             }
             List<StoreHourResponse> hours = new ArrayList<>();
             for (JsonNode node : root) {
+                // 불량 항목 하나 때문에 정상 요일까지 사라지지 않도록, 해당 항목만 스킵하고 나머지는 보존한다
                 if (!node.hasNonNull("day") || !node.hasNonNull("time")) {
-                    log.warn("[StoreService] 운영시간 항목에 day/time 누락 - storeId={}", store.getId());
-                    return List.of();
+                    log.warn("[StoreService] 운영시간 항목에 day/time 누락(해당 항목 스킵) - storeId={}", store.getId());
+                    continue;
                 }
                 hours.add(StoreHourResponse.builder()
                         .day(node.get("day").asText())
