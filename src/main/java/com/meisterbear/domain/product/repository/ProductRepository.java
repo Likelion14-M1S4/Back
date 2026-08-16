@@ -2,6 +2,7 @@ package com.meisterbear.domain.product.repository;
 
 import com.meisterbear.domain.product.entity.Product;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -14,4 +15,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // 베스트셀러(노출 순서 상위 10건) - COUNT 쿼리 없이 DB에서 바로 상한 적용
     List<Product> findTop10ByOrderByIdAsc();
+
+    // NFC 태그 검증 - 제품에 부착된 NFC uid로 조회
+    Optional<Product> findByNfcUid(String nfcUid);
 }

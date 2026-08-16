@@ -17,4 +17,10 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 
     // 등록 제품 상세 - 본인 구매 기록만 조회되도록 userId를 함께 대조
     Optional<OrderItem> findByIdAndUserId(Long id, Long userId);
+
+    // 정품 인증서 - NFC uid로 특정된 제품의 내 구매 기록
+    Optional<OrderItem> findFirstByUserIdAndProductIdOrderByOrderedAtDescIdDesc(Long userId, Long productId);
+
+    // 정품 인증서 - uid 없이 호출 시 최근 구매 1건 기준
+    Optional<OrderItem> findFirstByUserIdOrderByOrderedAtDescIdDesc(Long userId);
 }
