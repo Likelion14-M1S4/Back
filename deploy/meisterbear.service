@@ -7,11 +7,15 @@ User=ubuntu
 WorkingDirectory=/home/ubuntu/app
 # 정적 설정 (비밀 아님)
 Environment=SPRING_PROFILES_ACTIVE=dev
+# JVM 기본 타임존을 KST로 고정. serverTimezone(JDBC 변환)과 별개로,
+# @CreationTimestamp·LocalDate.now() 등 JVM 시계 기반 값이 UTC로 어긋나는 것 방지
+# (태그 이력 날짜 그룹·하루 1회 기록 경계·현재 시즌 판단이 오전 9시 이전에 어제로 밀리는 문제)
+Environment=TZ=Asia/Seoul
 Environment="DB_URL=jdbc:mysql://localhost:3306/meisterbear?serverTimezone=Asia/Seoul&characterEncoding=UTF-8"
 # 시크릿 (DB_USERNAME/DB_PASSWORD/JWT_SECRET/CORS/KAKAO) - 배포 시 Actions가 생성
 EnvironmentFile=/home/ubuntu/app/.env
 # t3.micro(1GB) 대비 힙 제한
-ExecStart=/usr/bin/java -Xms128m -Xmx320m -jar /home/ubuntu/app/app.jar
+ExecStart=/usr/bin/java -Xms128m -Xmx320m -Duser.timezone=Asia/Seoul -jar /home/ubuntu/app/app.jar
 SuccessExitStatus=143
 Restart=always
 RestartSec=5
