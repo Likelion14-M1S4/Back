@@ -25,6 +25,7 @@ public class StoreResponse {
     @Schema(description = "전화번호", example = "+82-2-772-3198")
     private String phone;
 
-    @Schema(description = "요일별 운영시간 (7요일)")
+    @Schema(description = "요일별 운영시간 (7요일)",
+            example = "[{\"day\":\"월요일\",\"time\":\"10:30 - 20:00\"},{\"day\":\"화요일\",\"time\":\"10:30 - 20:00\"}]")
     private List<StoreHourResponse> hours;
 }
