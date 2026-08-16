@@ -22,6 +22,7 @@ import com.meisterbear.global.exception.CustomException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -62,7 +63,7 @@ public class NfcService {
                 .type(TYPE_PRODUCT)
                 .productId(product.getId())
                 .productName(product.getName())
-                .character(findCharacter(product.getId()))
+                .character(findCharacter(product))
                 .nextPath(VERIFY_NEXT_PATH)
                 .build();
     }
@@ -143,14 +144,12 @@ public class NfcService {
     }
 
     // 제품에 연결된 캐릭터. 없으면 null (캐릭터 없는 제품도 태그/인증서는 정상 동작해야 한다)
-    private NfcCharacterResponse findCharacter(Long productId) {
-        Character character = characterRepository.findByProductId(productId).orElse(null);
+    private NfcCharacterResponse findCharacter(Product taggedProduct) {
+        Character character = characterRepository.findByProductId(taggedProduct.getId()).orElse(null);
         if (character == null) {
             return null;
         }
-        String collectionName = charmRepository.findFirstByCharacterIdOrderByIdAsc(character.getId())
-                .map(Charm::getCollectionName)
-                .orElse(null);
+        String collectionName = resolveCollectionName(character.getId(), taggedProduct.getSeason());
         return NfcCharacterResponse.builder()
                 .id(character.getId())
                 .name(character.getName())
@@ -158,5 +157,20 @@ public class NfcService {
                 .description(character.getIntro())
                 .imageUrl(character.getImgUrl())
                 .build();
+    }
+
+    // 컬렉션명: 태그한 제품의 시즌과 일치하는 참을 우선하고(시즌별로 컬렉션명이 다를 수 있음),
+    // 시즌이 없거나 해당 시즌 참이 없으면 시즌 무관 첫 참으로 폴백한다
+    private String resolveCollectionName(Long characterId, String season) {
+        if (season != null && !season.isBlank()) {
+            Optional<Charm> seasonal =
+                    charmRepository.findFirstByCharacterIdAndSeasonOrderByIdAsc(characterId, season);
+            if (seasonal.isPresent()) {
+                return seasonal.get().getCollectionName();
+            }
+        }
+        return charmRepository.findFirstByCharacterIdOrderByIdAsc(characterId)
+                .map(Charm::getCollectionName)
+                .orElse(null);
     }
 }
