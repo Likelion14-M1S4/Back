@@ -11,7 +11,6 @@ import com.meisterbear.global.exception.CustomException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +32,14 @@ public class CharacterService {
 
         List<Collection> collections = collectionRepository.findByUserIdAndCharacterId(userId, characterId);
         if (collections.isEmpty()) {
-            try {
+            // collection.product_id 전역 유니크 제약(다른 유저가 같은 제품의 컬렉션 행을 이미 보유)과의
+            // 충돌을 INSERT 전에 감지한다. 제약 위반을 catch하는 방식은 트랜잭션이 rollback-only로
+            // 마킹돼 커밋에서 500이 나므로 쓸 수 없다. 충돌 시 시연 흐름이 끊기지 않게 성공으로 응답하되
+            // 실제 저장은 안 된 것이므로 로그로 남긴다 (제약 재설계는 별도 논의)
+            if (collectionRepository.existsByProductId(character.getProductId())) {
+                log.warn("[CharacterService] 컬렉션 생성 스킵(product_id 유니크 선점) - userId={}, characterId={}",
+                        userId, characterId);
+            } else {
                 // 실물 태그 = 소유 확인이므로 바로 OWNED로 생성
                 collectionRepository.save(Collection.builder()
                         .userId(userId)
@@ -41,11 +47,6 @@ public class CharacterService {
                         .productId(character.getProductId())
                         .status(CollectionStatus.OWNED)
                         .build());
-            } catch (DataIntegrityViolationException e) {
-                // collection.product_id 전역 유니크 제약(다른 유저가 같은 제품의 컬렉션 행을 이미 보유) 등과
-                // 충돌해도 시연 흐름이 500으로 끊기지 않도록 성공으로 처리한다 (제약 재설계는 별도 논의)
-                log.warn("[CharacterService] 컬렉션 생성 제약 충돌(멱등 처리) - userId={}, characterId={}",
-                        userId, characterId);
             }
         } else {
             collections.forEach(this::promoteToOwned);
