@@ -29,7 +29,8 @@ public class ProductDetailResponse {
     @Schema(description = "현재 제품의 색상명", example = "Soft Pink")
     private String colorLabel;
 
-    @Schema(description = "선택 가능한 색상 옵션 (색상 형제 제품들, 자기 자신 포함)")
+    @Schema(description = "선택 가능한 색상 옵션 (색상 형제 제품들, 자기 자신 포함)",
+            example = "[{\"id\":1,\"name\":\"Soft Pink\",\"imageUrl\":\"https://meisterbear-images.s3.ap-northeast-2.amazonaws.com/product/1.png\"}]")
     private List<ProductColorResponse> colors;
 
     @Schema(description = "선택 가능한 사이즈 목록", example = "[\"미니\", \"S\"]")
@@ -44,7 +45,9 @@ public class ProductDetailResponse {
     @Schema(description = "매장 확인 이동 경로", example = "/story/stores")
     private String storeUrl;
 
-    @Schema(description = "상세 설명 블록")
+    @Schema(description = "상세 설명 블록",
+            example = "{\"headline\":\"Stark 사이드 스터드 비세토스 백팩\",\"description\":\"비세토스 캔버스에 스터드 디테일을 더한 백팩\","
+                    + "\"specs\":[\"소재: 비세토스 캔버스\",\"아틀리에: 서울\"]}")
     private ProductDetailSectionResponse detail;
 
     @Schema(description = "로그인 유저의 구매 여부 (시즌 제품 상세용)", example = "false")
