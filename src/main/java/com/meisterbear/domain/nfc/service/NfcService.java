@@ -76,10 +76,10 @@ public class NfcService {
         if (uid != null && !uid.isBlank()) {
             product = productRepository.findByNfcUid(uid)
                     .orElseThrow(() -> new CustomException(NfcErrorCode.NFC_NOT_FOUND));
-            order = orderItemRepository.findFirstByUserIdAndProductIdOrderByOrderedAtDesc(userId, product.getId())
+            order = orderItemRepository.findFirstByUserIdAndProductIdOrderByOrderedAtDescIdDesc(userId, product.getId())
                     .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
         } else {
-            order = orderItemRepository.findFirstByUserIdOrderByOrderedAtDesc(userId)
+            order = orderItemRepository.findFirstByUserIdOrderByOrderedAtDescIdDesc(userId)
                     .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
             product = productRepository.findById(order.getProductId()).orElse(null);
         }
