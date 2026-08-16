@@ -11,5 +11,8 @@ public interface CollectionRepository extends JpaRepository<Collection, Long> {
 
     boolean existsByUserIdAndCharacterIdAndStatus(Long userId, Long characterId, CollectionStatus status);
 
+    // NFC 태그 캐릭터 수집 - 기존 수집 행 유무/상태 확인용
+    Optional<Collection> findByUserIdAndCharacterId(Long userId, Long characterId);
+
     void deleteByUserId(Long userId);
 }
