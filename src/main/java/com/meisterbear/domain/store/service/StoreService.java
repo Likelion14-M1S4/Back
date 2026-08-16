@@ -43,8 +43,9 @@ public class StoreService {
     }
 
     // hours JSON 문자열 → [{day,time}] 목록. 시드 데이터 오타 등으로 파싱이 깨져도
-    // 매장 목록 자체는 내려가야 하므로(시연 우선) 실패 시 빈 목록으로 대체한다
-    private List<StoreHourResponse> parseHours(Store store) {
+    // 매장 목록 자체는 내려가야 하므로(시연 우선) 실패 시 빈 목록으로 대체한다.
+    // 매장 태그 상세(product 도메인)도 같은 파싱을 쓰므로 public으로 둔다
+    public List<StoreHourResponse> parseHours(Store store) {
         String raw = store.getHours();
         if (raw == null || raw.isBlank()) {
             return List.of();
