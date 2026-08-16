@@ -120,7 +120,7 @@ public class NfcService {
     // 태그한 제품의 진열 매장으로 방문 이력(user_tag STORE)을 남긴다.
     // 매장 연결이 없는 제품이면 조용히 건너뛴다 - 이력은 부가 기능이라 태그 검증 자체를 막지 않는다
     private void recordStoreTag(Long userId, Product product) {
-        productStoreRepository.findFirstByProductId(product.getId())
+        productStoreRepository.findFirstByProductIdOrderByStoreIdAsc(product.getId())
                 .ifPresent(productStore -> userTagRepository.save(UserTag.builder()
                         .userId(userId)
                         .productId(product.getId())
@@ -135,7 +135,7 @@ public class NfcService {
         if (character == null) {
             return null;
         }
-        String collectionName = charmRepository.findFirstByCharacterId(character.getId())
+        String collectionName = charmRepository.findFirstByCharacterIdOrderByIdAsc(character.getId())
                 .map(Charm::getCollectionName)
                 .orElse(null);
         return NfcCharacterResponse.builder()
