@@ -120,22 +120,22 @@ public class ProductService {
                 .build();
     }
 
-    // 등록(구매) 제품 목록 - 최근 구매 순. 날짜는 화면 표기 포맷 문자열로 완성해서 내려준다 (프론트 가공 불필요)
+    // 등록(구매) 제품 목록 - 최근 등록 순. 날짜는 화면 표기 포맷 문자열로 완성해서 내려준다 (프론트 가공 불필요)
     public List<MyProductResponse> getMyProducts(Long userId) {
         List<OrderItem> orders = orderItemRepository.findByUserIdOrderByOrderedAtDesc(userId);
         Map<Long, Product> products = findProductsById(orders.stream().map(OrderItem::getProductId).toList());
 
+        // 등록일 = 수령 시점(없으면 구매 시점) - 상세 화면의 registeredAt과 동일 기준.
+        // 정렬도 같은 기준을 써서 목록에 표시되는 날짜가 항상 내림차순이 되게 한다 (정렬키≠표시값 불일치 방지)
         List<MyProductResponse> responses = orders.stream()
+                .sorted(java.util.Comparator.comparing(this::resolveRegisteredAt).reversed())
                 .map(order -> {
                     Product product = products.get(order.getProductId());
-                    // 등록일 = 수령 시점(없으면 구매 시점) - 상세 화면의 registeredAt과 동일 기준으로 통일
-                    LocalDateTime registeredAt =
-                            order.getReceivedAt() != null ? order.getReceivedAt() : order.getOrderedAt();
                     return MyProductResponse.builder()
                             .id(order.getId())
                             .name(product != null ? product.getName() : null)
                             .imageUrl(product != null ? product.getImgUrl() : null)
-                            .registeredAt(formatDate(registeredAt))
+                            .registeredAt(formatDate(resolveRegisteredAt(order)))
                             .build();
                 })
                 .toList();
@@ -164,6 +164,11 @@ public class ProductService {
                 .registeredAt(formatDateTime(registeredAt))
                 .storeName(storeName)
                 .build();
+    }
+
+    // 등록일 기준: 수령 시점 우선, 없으면 구매 시점 (목록·상세 공통)
+    private LocalDateTime resolveRegisteredAt(OrderItem order) {
+        return order.getReceivedAt() != null ? order.getReceivedAt() : order.getOrderedAt();
     }
 
     // N+1 방지를 위한 일괄 조회 (주문 목록 → 제품 맵)
