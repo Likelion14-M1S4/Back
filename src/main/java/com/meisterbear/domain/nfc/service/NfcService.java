@@ -49,13 +49,16 @@ public class NfcService {
     private final StoreRepository storeRepository;
 
     // NFC 태그 검증(제품 태그). 제품·캐릭터 정보를 내려주고, 부수효과로 방문 매장 태그 이력을 기록한다.
-    // 실물 NFC에 각인된 URL의 uid가 그대로 들어온다
+    // 실물 NFC에 각인된 URL의 uid가 그대로 들어온다.
+    // 기획상 태그는 로그인 전에 일어나므로(온보딩 퍼널) 비로그인 허용 - userId가 null이면 이력 기록만 생략한다
     @Transactional
     public NfcVerifyResponse verify(Long userId, String uid) {
         Product product = productRepository.findByNfcUid(uid)
                 .orElseThrow(() -> new CustomException(NfcErrorCode.NFC_NOT_FOUND));
 
-        recordStoreTag(userId, product);
+        if (userId != null) {
+            recordStoreTag(userId, product);
+        }
 
         log.info("[NfcService] NFC 태그 검증 완료 - userId={}, productId={}", userId, product.getId());
         return NfcVerifyResponse.builder()
@@ -67,7 +70,9 @@ public class NfcService {
                 .build();
     }
 
-    // 정품 인증서 조회. uid가 있으면 그 제품의 내 구매 기록, 없으면 최근 구매 1건 기준.
+    // 정품 인증서 조회. 기획상 태그 직후(로그인 전) 화면이므로 비로그인 허용.
+    // uid가 있으면 "이 실물 제품"의 최신 구매 기록 기준(유저 무관 - 실물에 대한 인증서라는 의미),
+    // uid가 없으면 로그인 유저의 최근 구매 1건 기준(마이페이지류 진입 대비).
     // 인증서 필드는 구매 기록(order_item)과 제품(product)에서 그대로 채운다
     public CertificateResponse getCertificate(Long userId, String uid) {
         // uid 경로에서는 제품을 먼저 특정하므로, 조회한 Product를 재사용해 동일 행 중복 SELECT를 피한다
@@ -76,9 +81,13 @@ public class NfcService {
         if (uid != null && !uid.isBlank()) {
             product = productRepository.findByNfcUid(uid)
                     .orElseThrow(() -> new CustomException(NfcErrorCode.NFC_NOT_FOUND));
-            order = orderItemRepository.findFirstByUserIdAndProductIdOrderByOrderedAtDescIdDesc(userId, product.getId())
+            order = orderItemRepository.findFirstByProductIdOrderByOrderedAtDescIdDesc(product.getId())
                     .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
         } else {
+            if (userId == null) {
+                // 비로그인 + uid 없음: 어떤 인증서인지 특정할 수 없다
+                throw new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND);
+            }
             order = orderItemRepository.findFirstByUserIdOrderByOrderedAtDescIdDesc(userId)
                     .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
             product = productRepository.findById(order.getProductId()).orElse(null);

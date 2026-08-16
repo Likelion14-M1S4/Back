@@ -29,7 +29,8 @@ public class NfcController {
 
     @Operation(
             summary = "NFC 태그 검증",
-            description = "실물 NFC(제품 부착)에 각인된 uid로 제품을 식별한다.\n\n"
+            description = "실물 NFC(제품 부착)에 각인된 uid로 제품을 식별한다. **비로그인 호출 허용** (온보딩 퍼널: 태그→인증서→캐릭터→로그인).\n\n"
+                    + "- 비로그인이면 방문 태그 이력 기록만 생략되고 검증·캐릭터 정보는 동일하게 내려간다.\n"
                     + "- 응답의 character를 캐릭터 컬렉션 추가 화면에 사용한다 (없으면 null).\n"
                     + "- 부수효과: 제품의 진열 매장으로 방문 태그 이력이 기록된다 (매장 태그 이력 화면에 반영).\n"
                     + "- 검증 후 uid를 그대로 정품 인증서 조회(GET /api/nfc/certificate?uid=)에 넘긴다.")
@@ -73,14 +74,16 @@ public class NfcController {
     public BaseResponse<NfcVerifyResponse> verify(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam String uid) {
-        return BaseResponse.success(nfcService.verify(userDetails.getUser().getId(), uid));
+        // 온보딩 퍼널은 비로그인 허용(permitAll) - 익명이면 이력 기록 없이 검증만 수행
+        Long userId = userDetails != null ? userDetails.getUser().getId() : null;
+        return BaseResponse.success(nfcService.verify(userId, uid));
     }
 
     @Operation(
             summary = "정품 인증서 조회",
-            description = "정품 인증서를 반환한다.\n\n"
-                    + "- uid(NFC 태그 값)를 넘기면 그 제품의 내 구매 기록 기준으로 발급한다 (verify에서 받은 uid를 그대로 전달 권장).\n"
-                    + "- uid를 생략하면 로그인 유저의 최근 구매 1건 기준.")
+            description = "정품 인증서를 반환한다. **비로그인 호출 허용** (태그 직후 로그인 전 화면).\n\n"
+                    + "- uid(NFC 태그 값)를 넘기면 **그 실물 제품의 최신 구매 기록** 기준으로 발급한다 - 유저 무관 (verify에서 받은 uid 그대로 전달).\n"
+                    + "- uid를 생략하면 로그인 유저의 최근 구매 1건 기준 (비로그인+uid 없음이면 404).")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "정품 인증서 조회 성공",
                     content = @Content(mediaType = "application/json",
@@ -119,6 +122,8 @@ public class NfcController {
     public BaseResponse<CertificateResponse> getCertificate(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(required = false) String uid) {
-        return BaseResponse.success(nfcService.getCertificate(userDetails.getUser().getId(), uid));
+        // 온보딩 퍼널은 비로그인 허용(permitAll) - uid 기반 조회는 유저 무관
+        Long userId = userDetails != null ? userDetails.getUser().getId() : null;
+        return BaseResponse.success(nfcService.getCertificate(userId, uid));
     }
 }

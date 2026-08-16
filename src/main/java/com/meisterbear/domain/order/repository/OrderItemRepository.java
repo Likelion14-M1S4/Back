@@ -21,6 +21,10 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
     // 정품 인증서 - NFC uid로 특정된 제품의 내 구매 기록
     Optional<OrderItem> findFirstByUserIdAndProductIdOrderByOrderedAtDescIdDesc(Long userId, Long productId);
 
+    // 정품 인증서 - NFC 실물 제품 기준의 최신 구매 기록.
+    // 비로그인 온보딩 퍼널(기획: 태그→인증서→로그인)에서는 "이 실물의 구매 이력"이 의미라 유저 무관 조회
+    Optional<OrderItem> findFirstByProductIdOrderByOrderedAtDescIdDesc(Long productId);
+
     // 정품 인증서 - uid 없이 호출 시 최근 구매 1건 기준
     Optional<OrderItem> findFirstByUserIdOrderByOrderedAtDescIdDesc(Long userId);
 }
