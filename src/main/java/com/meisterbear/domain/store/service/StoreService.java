@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,9 +23,9 @@ public class StoreService {
     private final StoreRepository storeRepository;
     private final ObjectMapper objectMapper;
 
-    // 구매 가능 매장 전체 목록. 매장 수가 적은 시연용 데이터라 필터/정렬 없이 id 순으로 반환한다
+    // 구매 가능 매장 전체 목록. id 순 정렬을 명시한다 (findAll만으로는 순서가 보장되지 않음)
     public List<StoreResponse> getStores() {
-        List<StoreResponse> stores = storeRepository.findAll().stream()
+        List<StoreResponse> stores = storeRepository.findAll(Sort.by("id")).stream()
                 .map(this::toResponse)
                 .toList();
         log.info("[StoreService] 매장 목록 조회 완료 - count={}", stores.size());
@@ -52,11 +53,20 @@ public class StoreService {
         }
         try {
             JsonNode root = objectMapper.readTree(raw);
+            // 배열이 아닌 JSON(객체 등)은 readTree가 예외 없이 통과해 빈 값 항목을 만들 수 있으므로 구조를 검증한다
+            if (!root.isArray()) {
+                log.warn("[StoreService] 운영시간 JSON이 배열이 아님 - storeId={}", store.getId());
+                return List.of();
+            }
             List<StoreHourResponse> hours = new ArrayList<>();
             for (JsonNode node : root) {
+                if (!node.hasNonNull("day") || !node.hasNonNull("time")) {
+                    log.warn("[StoreService] 운영시간 항목에 day/time 누락 - storeId={}", store.getId());
+                    return List.of();
+                }
                 hours.add(StoreHourResponse.builder()
-                        .day(node.path("day").asText())
-                        .time(node.path("time").asText())
+                        .day(node.get("day").asText())
+                        .time(node.get("time").asText())
                         .build());
             }
             return hours;
