@@ -30,10 +30,20 @@ public class Store {
     @Column(length = 20)
     private String phone;
 
+    @Column(name = "postal_code", length = 10)
+    private String postalCode;
+
+    // 요일별 운영시간. [{"day":"월요일","time":"10:30 - 20:00"}, ...] 형태의 JSON 문자열로 저장한다.
+    // 매장 수가 적고 조회 전용이라 별도 테이블 대신 JSON 컬럼으로 단순하게 유지 (시연 우선)
+    @Column(columnDefinition = "TEXT")
+    private String hours;
+
     @Builder
-    private Store(String name, String address, String phone) {
+    private Store(String name, String address, String phone, String postalCode, String hours) {
         this.name = name;
         this.address = address;
         this.phone = phone;
+        this.postalCode = postalCode;
+        this.hours = hours;
     }
 }
