@@ -1,9 +1,11 @@
 package com.meisterbear.domain.product.service;
 
+import com.meisterbear.domain.order.entity.OrderItem;
 import com.meisterbear.domain.order.repository.OrderItemRepository;
 import com.meisterbear.domain.product.dto.response.BestsellerSectionResponse;
 import com.meisterbear.domain.product.dto.response.CurationSectionResponse;
 import com.meisterbear.domain.product.dto.response.JourneySectionResponse;
+import com.meisterbear.domain.product.dto.response.MyProductResponse;
 import com.meisterbear.domain.product.dto.response.ProductColorResponse;
 import com.meisterbear.domain.product.dto.response.ProductDetailResponse;
 import com.meisterbear.domain.product.dto.response.ProductDetailSectionResponse;
@@ -15,8 +17,13 @@ import com.meisterbear.domain.product.exception.ProductErrorCode;
 import com.meisterbear.domain.product.repository.ProductRepository;
 import com.meisterbear.domain.wishlist.repository.WishlistRepository;
 import com.meisterbear.global.exception.CustomException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -106,6 +113,50 @@ public class ProductService {
                 // 시즌 값이 있는 제품 = 시즌 한정 → 스토리 완주 후 구매 가능 정책
                 .requiresStory(product.getSeason() != null)
                 .build();
+    }
+
+    // 등록(구매) 제품 목록 - 최근 구매 순. 날짜는 화면 표기 포맷 문자열로 완성해서 내려준다 (프론트 가공 불필요)
+    public List<MyProductResponse> getMyProducts(Long userId) {
+        List<OrderItem> orders = orderItemRepository.findByUserIdOrderByOrderedAtDesc(userId);
+        Map<Long, Product> products = findProductsById(orders.stream().map(OrderItem::getProductId).toList());
+
+        List<MyProductResponse> responses = orders.stream()
+                .map(order -> {
+                    Product product = products.get(order.getProductId());
+                    return MyProductResponse.builder()
+                            .id(order.getId())
+                            .name(product != null ? product.getName() : null)
+                            .imageUrl(product != null ? product.getImgUrl() : null)
+                            .registeredAt(formatDate(order.getOrderedAt()))
+                            .build();
+                })
+                .toList();
+        log.info("[ProductService] 등록 제품 목록 조회 완료 - userId={}, count={}", userId, responses.size());
+        return responses;
+    }
+
+    // N+1 방지를 위한 일괄 조회 (주문 목록 → 제품 맵)
+    private Map<Long, Product> findProductsById(List<Long> productIds) {
+        return productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
+    }
+
+    // "2026.08.16" - 목록/이력의 날짜 표기 포맷
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+
+    private String formatDate(LocalDateTime dateTime) {
+        return dateTime != null ? dateTime.format(DATE_FORMAT) : null;
+    }
+
+    // "2026.08.16 pm.03:00" - 프론트 화면이 쓰는 날짜+시간 표기 포맷 (12시간제, am/pm 소문자)
+    private String formatDateTime(LocalDateTime dateTime) {
+        if (dateTime == null) {
+            return null;
+        }
+        int hour = dateTime.getHour();
+        String meridiem = hour < 12 ? "am" : "pm";
+        int hour12 = hour % 12 == 0 ? 12 : hour % 12;
+        return String.format("%s %s.%02d:%02d", dateTime.format(DATE_FORMAT), meridiem, hour12, dateTime.getMinute());
     }
 
     // 시즌 제품 목록. 시즌 값이 잘못 와도(오타 등) 에러 대신 빈 목록으로 내려 화면이 깨지지 않게 한다 (시연 우선)

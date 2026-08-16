@@ -1,5 +1,6 @@
 package com.meisterbear.domain.product.controller;
 
+import com.meisterbear.domain.product.dto.response.MyProductResponse;
 import com.meisterbear.domain.product.dto.response.ProductDetailResponse;
 import com.meisterbear.domain.product.dto.response.RecommendPageResponse;
 import com.meisterbear.domain.product.dto.response.SeasonProductListResponse;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -88,6 +90,36 @@ public class ProductController {
     @GetMapping("/seasons/{season}")
     public BaseResponse<SeasonProductListResponse> getSeasonProducts(@PathVariable String season) {
         return BaseResponse.success(productService.getSeasonProducts(season));
+    }
+
+    @Operation(
+            summary = "등록 제품 목록 조회",
+            description = "로그인 유저가 구매(등록)한 제품 목록을 최근 구매 순으로 반환한다. "
+                    + "각 항목의 id는 구매 기록 id이며, 등록 제품 상세 조회(GET /api/products/my/{orderItemId})에 그대로 사용한다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "등록 제품 목록 조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "조회 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": [
+                                        {
+                                          "id": 1,
+                                          "name": "Stark 사이드 스터드 비세토스 백팩",
+                                          "imageUrl": "https://meisterbear-images.s3.ap-northeast-2.amazonaws.com/product/1.png",
+                                          "registeredAt": "2026.08.16"
+                                        }
+                                      ]
+                                    }
+                                    """)))
+    })
+    @GetMapping("/my")
+    public BaseResponse<List<MyProductResponse>> getMyProducts(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return BaseResponse.success(productService.getMyProducts(userDetails.getUser().getId()));
     }
 
     @Operation(
