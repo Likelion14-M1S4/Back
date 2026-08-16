@@ -5,7 +5,10 @@ import com.meisterbear.domain.product.dto.response.MyProductResponse;
 import com.meisterbear.domain.product.dto.response.ProductDetailResponse;
 import com.meisterbear.domain.product.dto.response.RecommendPageResponse;
 import com.meisterbear.domain.product.dto.response.SeasonProductListResponse;
+import com.meisterbear.domain.product.dto.response.StoreTagDetailResponse;
+import com.meisterbear.domain.product.dto.response.StoreTagHistoryResponse;
 import com.meisterbear.domain.product.service.ProductService;
+import com.meisterbear.domain.product.service.ProductTagService;
 import com.meisterbear.global.common.BaseResponse;
 import com.meisterbear.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductTagService productTagService;
 
     @Operation(
             summary = "추천 페이지 조회",
@@ -121,6 +125,81 @@ public class ProductController {
     public BaseResponse<List<MyProductResponse>> getMyProducts(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return BaseResponse.success(productService.getMyProducts(userDetails.getUser().getId()));
+    }
+
+    @Operation(
+            summary = "매장 태그 이력 목록 조회",
+            description = "로그인 유저가 태그한 매장 목록을 최근 방문 순으로 반환한다. "
+                    + "각 항목의 id(매장 id)를 매장 태그 상세 조회(GET /api/products/tags/{storeId})에 그대로 사용한다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "매장 태그 이력 조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "조회 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": [
+                                        { "id": 1, "storeName": "MCM 롯데백화점 본점", "lastVisitedAt": "2026.08.16" }
+                                      ]
+                                    }
+                                    """)))
+    })
+    @GetMapping("/tags")
+    public BaseResponse<List<StoreTagHistoryResponse>> getStoreTagHistory(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        return BaseResponse.success(productTagService.getStoreTagHistory(userDetails.getUser().getId()));
+    }
+
+    @Operation(
+            summary = "매장 태그 상세 조회",
+            description = "매장 정보(주소·전화·운영시간)와 그 매장에서 태그한 제품들을 날짜별 그룹으로 반환한다. "
+                    + "taggedGroups는 최근 날짜 순이며, 같은 제품이 여러 날짜에 중복 등장할 수 있다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "매장 태그 상세 조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "조회 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": {
+                                        "storeName": "MCM 롯데백화점 본점",
+                                        "address": "서울 중구 남대문로 81, 롯데백화점 본점 1F 04533",
+                                        "phone": "+82-2-772-3198",
+                                        "hours": [ { "day": "월요일", "time": "10:30 - 20:00" } ],
+                                        "taggedGroups": [
+                                          {
+                                            "date": "2026.08.16",
+                                            "products": [
+                                              { "id": 1, "name": "Stark 사이드 스터드 비세토스 백팩", "imageUrl": "https://meisterbear-images.s3.ap-northeast-2.amazonaws.com/product/1.png" }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "매장 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "매장 없음", value = """
+                                    {
+                                      "success": false,
+                                      "code": "STORE404",
+                                      "message": "매장을 찾을 수 없습니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @GetMapping("/tags/{storeId}")
+    public BaseResponse<StoreTagDetailResponse> getStoreTagDetail(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long storeId) {
+        StoreTagDetailResponse response =
+                productTagService.getStoreTagDetail(userDetails.getUser().getId(), storeId);
+        return BaseResponse.success(response);
     }
 
     @Operation(
