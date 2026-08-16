@@ -70,8 +70,19 @@ public class NfcService {
     // 정품 인증서 조회. uid가 있으면 그 제품의 내 구매 기록, 없으면 최근 구매 1건 기준.
     // 인증서 필드는 구매 기록(order_item)과 제품(product)에서 그대로 채운다
     public CertificateResponse getCertificate(Long userId, String uid) {
-        OrderItem order = findCertificateOrder(userId, uid);
-        Product product = productRepository.findById(order.getProductId()).orElse(null);
+        // uid 경로에서는 제품을 먼저 특정하므로, 조회한 Product를 재사용해 동일 행 중복 SELECT를 피한다
+        Product product;
+        OrderItem order;
+        if (uid != null && !uid.isBlank()) {
+            product = productRepository.findByNfcUid(uid)
+                    .orElseThrow(() -> new CustomException(NfcErrorCode.NFC_NOT_FOUND));
+            order = orderItemRepository.findFirstByUserIdAndProductIdOrderByOrderedAtDesc(userId, product.getId())
+                    .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
+        } else {
+            order = orderItemRepository.findFirstByUserIdOrderByOrderedAtDesc(userId)
+                    .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
+            product = productRepository.findById(order.getProductId()).orElse(null);
+        }
         String purchasePlace = storeRepository.findById(order.getStoreId())
                 .map(Store::getName)
                 .orElse(null);
@@ -90,20 +101,10 @@ public class NfcService {
                 .issuedAt(issuedAt.format(DATE_FORMAT))
                 .purchasedAt(formatDateTime(order.getOrderedAt()))
                 .receivedAt(formatDateTime(order.getReceivedAt()))
-                .seller(order.getSeller() != null ? order.getSeller() : CERTIFICATE_SELLER_DEFAULT)
+                .seller(order.getSeller() != null && !order.getSeller().isBlank()
+                        ? order.getSeller() : CERTIFICATE_SELLER_DEFAULT)
                 .purchasePlace(purchasePlace)
                 .build();
-    }
-
-    private OrderItem findCertificateOrder(Long userId, String uid) {
-        if (uid != null && !uid.isBlank()) {
-            Product product = productRepository.findByNfcUid(uid)
-                    .orElseThrow(() -> new CustomException(NfcErrorCode.NFC_NOT_FOUND));
-            return orderItemRepository.findFirstByUserIdAndProductIdOrderByOrderedAtDesc(userId, product.getId())
-                    .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
-        }
-        return orderItemRepository.findFirstByUserIdOrderByOrderedAtDesc(userId)
-                .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
     }
 
     // "2026.08.16 pm.03:00" - 프론트 화면이 쓰는 날짜+시간 표기 포맷 (12시간제, am/pm 소문자)
@@ -118,15 +119,27 @@ public class NfcService {
     }
 
     // 태그한 제품의 진열 매장으로 방문 이력(user_tag STORE)을 남긴다.
-    // 매장 연결이 없는 제품이면 조용히 건너뛴다 - 이력은 부가 기능이라 태그 검증 자체를 막지 않는다
+    // 매장 연결이 없는 제품이면 조용히 건너뛴다 - 이력은 부가 기능이라 태그 검증 자체를 막지 않는다.
+    // 같은 유저·제품·매장은 하루 1회만 기록한다 (재태그 시 이력 상세의 날짜 그룹에 같은 제품이 중복 노출되는 것 방지)
     private void recordStoreTag(Long userId, Product product) {
         productStoreRepository.findFirstByProductIdOrderByStoreIdAsc(product.getId())
-                .ifPresent(productStore -> userTagRepository.save(UserTag.builder()
-                        .userId(userId)
-                        .productId(product.getId())
-                        .tagType(TagType.STORE)
-                        .storeId(productStore.getStoreId())
-                        .build()));
+                .ifPresent(productStore -> {
+                    LocalDateTime dayStart = LocalDate.now().atStartOfDay();
+                    LocalDateTime dayEnd = dayStart.plusDays(1).minusNanos(1);
+                    boolean alreadyTaggedToday = userTagRepository
+                            .existsByUserIdAndProductIdAndStoreIdAndTagTypeAndTaggedAtBetween(
+                                    userId, product.getId(), productStore.getStoreId(), TagType.STORE,
+                                    dayStart, dayEnd);
+                    if (alreadyTaggedToday) {
+                        return;
+                    }
+                    userTagRepository.save(UserTag.builder()
+                            .userId(userId)
+                            .productId(product.getId())
+                            .tagType(TagType.STORE)
+                            .storeId(productStore.getStoreId())
+                            .build());
+                });
     }
 
     // 제품에 연결된 캐릭터. 없으면 null (캐릭터 없는 제품도 태그/인증서는 정상 동작해야 한다)
