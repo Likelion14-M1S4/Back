@@ -2,6 +2,7 @@ package com.meisterbear.domain.product.controller;
 
 import com.meisterbear.domain.product.dto.response.ProductDetailResponse;
 import com.meisterbear.domain.product.dto.response.RecommendPageResponse;
+import com.meisterbear.domain.product.dto.response.SeasonProductListResponse;
 import com.meisterbear.domain.product.service.ProductService;
 import com.meisterbear.global.common.BaseResponse;
 import com.meisterbear.security.CustomUserDetails;
@@ -58,6 +59,35 @@ public class ProductController {
     @GetMapping("/recommendations")
     public BaseResponse<RecommendPageResponse> getRecommendPage() {
         return BaseResponse.success(productService.getRecommendPage());
+    }
+
+    @Operation(
+            summary = "시즌 제품 목록 조회",
+            description = "특정 시즌의 히어로 배너·소개 문구·제품 목록을 반환한다. 현재 시즌 값: `2026-FALL`. "
+                    + "존재하지 않는 시즌 값이면 빈 products로 응답한다(에러 아님). "
+                    + "각 제품의 상세는 GET /api/products/{productId}로 조회한다(시즌 상세 화면 겸용).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "시즌 제품 목록 조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "조회 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": {
+                                        "heroImageUrl": "https://meisterbear-images.s3.ap-northeast-2.amazonaws.com/season/2026-FALL/hero.png",
+                                        "description": "2026 가을, 마이스터베어의 새로운 시즌을 만나보세요.",
+                                        "products": [
+                                          { "id": 301, "name": "비세토스 라이언 참", "price": 410000, "imageUrl": "https://meisterbear-images.s3.ap-northeast-2.amazonaws.com/product/301.png" }
+                                        ]
+                                      }
+                                    }
+                                    """)))
+    })
+    @GetMapping("/seasons/{season}")
+    public BaseResponse<SeasonProductListResponse> getSeasonProducts(@PathVariable String season) {
+        return BaseResponse.success(productService.getSeasonProducts(season));
     }
 
     @Operation(

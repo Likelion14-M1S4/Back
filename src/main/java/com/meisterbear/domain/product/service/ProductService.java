@@ -9,6 +9,7 @@ import com.meisterbear.domain.product.dto.response.ProductDetailResponse;
 import com.meisterbear.domain.product.dto.response.ProductDetailSectionResponse;
 import com.meisterbear.domain.product.dto.response.ProductSummaryResponse;
 import com.meisterbear.domain.product.dto.response.RecommendPageResponse;
+import com.meisterbear.domain.product.dto.response.SeasonProductListResponse;
 import com.meisterbear.domain.product.entity.Product;
 import com.meisterbear.domain.product.exception.ProductErrorCode;
 import com.meisterbear.domain.product.repository.ProductRepository;
@@ -42,6 +43,10 @@ public class ProductService {
     // 제품 상세 매장 확인 버튼 구성값 (프론트 mock과 동일)
     private static final String STORE_CHECK_LABEL = "구매 가능 매장 확인하기";
     private static final String STORE_CHECK_URL = "/story/stores";
+
+    // 시즌 페이지 구성값. 시즌 문자열은 시드의 product.season 값과 일치해야 한다 (현재 시즌: 2026-FALL)
+    private static final String SEASON_HERO_IMAGE_FORMAT = IMAGE_BASE + "/season/%s/hero.png";
+    private static final String SEASON_DESCRIPTION = "2026 가을, 마이스터베어의 새로운 시즌을 만나보세요.";
 
     private final ProductRepository productRepository;
     private final WishlistRepository wishlistRepository;
@@ -100,6 +105,20 @@ public class ProductService {
                 .isPurchased(isPurchased)
                 // 시즌 값이 있는 제품 = 시즌 한정 → 스토리 완주 후 구매 가능 정책
                 .requiresStory(product.getSeason() != null)
+                .build();
+    }
+
+    // 시즌 제품 목록. 시즌 값이 잘못 와도(오타 등) 에러 대신 빈 목록으로 내려 화면이 깨지지 않게 한다 (시연 우선)
+    public SeasonProductListResponse getSeasonProducts(String season) {
+        List<ProductSummaryResponse> products = productRepository.findBySeasonOrderByIdAsc(season).stream()
+                .map(this::toSummary)
+                .toList();
+
+        log.info("[ProductService] 시즌 제품 목록 조회 완료 - season={}, count={}", season, products.size());
+        return SeasonProductListResponse.builder()
+                .heroImageUrl(String.format(SEASON_HERO_IMAGE_FORMAT, season))
+                .description(SEASON_DESCRIPTION)
+                .products(products)
                 .build();
     }
 

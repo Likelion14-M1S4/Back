@@ -8,4 +8,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // 같은 디자인의 색상/사이즈 형제 제품들 (제품 상세의 colors/sizes 구성용)
     List<Product> findByProductGroupIdOrderByIdAsc(Long productGroupId);
+
+    // 시즌 제품 목록 (season 컬럼 값은 시드 기준 "2026-FALL" 형식)
+    List<Product> findBySeasonOrderByIdAsc(String season);
 }
