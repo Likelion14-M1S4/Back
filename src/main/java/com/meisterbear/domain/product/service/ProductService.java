@@ -128,7 +128,9 @@ public class ProductService {
         // 등록일 = 수령 시점(없으면 구매 시점) - 상세 화면의 registeredAt과 동일 기준.
         // 정렬도 같은 기준을 써서 목록에 표시되는 날짜가 항상 내림차순이 되게 한다 (정렬키≠표시값 불일치 방지)
         List<MyProductResponse> responses = orders.stream()
-                .sorted(java.util.Comparator.comparing(this::resolveRegisteredAt).reversed())
+                .sorted(java.util.Comparator.comparing(this::resolveRegisteredAt)
+                        .thenComparing(OrderItem::getId)
+                        .reversed())
                 .map(order -> {
                     Product product = products.get(order.getProductId());
                     return MyProductResponse.builder()
