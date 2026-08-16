@@ -29,6 +29,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,17 +58,21 @@ public class ProductService {
 
     // 시즌 페이지 구성값. 시즌 문자열은 시드의 product.season 값과 일치해야 한다 (현재 시즌: 2026-FALL)
     private static final String SEASON_HERO_IMAGE_FORMAT = IMAGE_BASE + "/season/%s/hero.png";
-    private static final String SEASON_DESCRIPTION = "2026 가을, 마이스터베어의 새로운 시즌을 만나보세요.";
+    // 어떤 시즌을 조회해도 어긋나지 않도록 시즌 중립 문구를 쓴다 (시즌별 카피가 확정되면 시즌→문구 맵으로 확장)
+    private static final String SEASON_DESCRIPTION = "마이스터베어의 새로운 시즌을 만나보세요.";
 
     private final ProductRepository productRepository;
     private final WishlistRepository wishlistRepository;
     private final OrderItemRepository orderItemRepository;
     private final StoreRepository storeRepository;
 
-    // 추천 페이지 한 방 조회. 히어로/여정/큐레이션은 고정 구성, 베스트셀러만 DB에서 채운다
+    // 추천 페이지 한 방 조회. 히어로/여정/큐레이션은 고정 구성, 베스트셀러만 DB에서 채운다.
+    // 베스트셀러 기준 = 노출 순서(시드 id 순) - 시연 데이터에는 판매량 집계가 무의미해 채택한 기준.
+    // 정렬과 상한을 DB 쿼리에 적용해 결정론과 메모리 사용을 보장한다
     public RecommendPageResponse getRecommendPage() {
-        List<ProductSummaryResponse> bestsellers = productRepository.findAll().stream()
-                .limit(BESTSELLER_LIMIT)
+        List<ProductSummaryResponse> bestsellers = productRepository
+                .findAll(PageRequest.of(0, BESTSELLER_LIMIT, Sort.by("id")))
+                .getContent().stream()
                 .map(this::toSummary)
                 .toList();
 
