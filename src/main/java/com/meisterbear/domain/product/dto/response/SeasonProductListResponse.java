@@ -11,7 +11,7 @@ import lombok.Getter;
 public class SeasonProductListResponse {
 
     @Schema(description = "시즌 히어로 배너 이미지 URL",
-            example = "https://meisterbear-images.s3.ap-northeast-2.amazonaws.com/season/2026-FALL/hero.png")
+            example = "https://meisterbear-images.s3.ap-northeast-2.amazonaws.com/season/AW2026/hero.png")
     private String heroImageUrl;
 
     @Schema(description = "시즌 소개 문구", example = "마이스터베어의 새로운 시즌을 만나보세요.")

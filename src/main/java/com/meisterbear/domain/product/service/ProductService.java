@@ -29,8 +29,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,14 +47,13 @@ public class ProductService {
     private static final String CURATION_TITLE = "이달의 큐레이션";
     private static final String CURATION_IMAGE = IMAGE_BASE + "/recommend/curation.png";
     private static final String BESTSELLER_TITLE = "베스트셀러";
-    // 시연 데이터 규모(수십 건)에서 노출 개수만 제한하는 값
-    private static final int BESTSELLER_LIMIT = 10;
+    // 베스트셀러 노출 개수는 리포지토리 findTop10ByOrderByIdAsc의 Top10으로 제한한다
 
     // 제품 상세 매장 확인 버튼 구성값 (프론트 mock과 동일)
     private static final String STORE_CHECK_LABEL = "구매 가능 매장 확인하기";
     private static final String STORE_CHECK_URL = "/story/stores";
 
-    // 시즌 페이지 구성값. 시즌 문자열은 시드의 product.season 값과 일치해야 한다 (현재 시즌: 2026-FALL)
+    // 시즌 페이지 구성값. 시즌 문자열은 시드의 product.season 값과 일치해야 한다 (현재 시즌: AW2026 - 스토리 도메인 시즌 코드와 반드시 동일 형식)
     private static final String SEASON_HERO_IMAGE_FORMAT = IMAGE_BASE + "/season/%s/hero.png";
     // 어떤 시즌을 조회해도 어긋나지 않도록 시즌 중립 문구를 쓴다 (시즌별 카피가 확정되면 시즌→문구 맵으로 확장)
     private static final String SEASON_DESCRIPTION = "마이스터베어의 새로운 시즌을 만나보세요.";
@@ -70,9 +67,7 @@ public class ProductService {
     // 베스트셀러 기준 = 노출 순서(시드 id 순) - 시연 데이터에는 판매량 집계가 무의미해 채택한 기준.
     // 정렬과 상한을 DB 쿼리에 적용해 결정론과 메모리 사용을 보장한다
     public RecommendPageResponse getRecommendPage() {
-        List<ProductSummaryResponse> bestsellers = productRepository
-                .findAll(PageRequest.of(0, BESTSELLER_LIMIT, Sort.by("id")))
-                .getContent().stream()
+        List<ProductSummaryResponse> bestsellers = productRepository.findTop10ByOrderByIdAsc().stream()
                 .map(this::toSummary)
                 .toList();
 
@@ -133,11 +128,14 @@ public class ProductService {
         List<MyProductResponse> responses = orders.stream()
                 .map(order -> {
                     Product product = products.get(order.getProductId());
+                    // 등록일 = 수령 시점(없으면 구매 시점) - 상세 화면의 registeredAt과 동일 기준으로 통일
+                    LocalDateTime registeredAt =
+                            order.getReceivedAt() != null ? order.getReceivedAt() : order.getOrderedAt();
                     return MyProductResponse.builder()
                             .id(order.getId())
                             .name(product != null ? product.getName() : null)
                             .imageUrl(product != null ? product.getImgUrl() : null)
-                            .registeredAt(formatDate(order.getOrderedAt()))
+                            .registeredAt(formatDate(registeredAt))
                             .build();
                 })
                 .toList();
