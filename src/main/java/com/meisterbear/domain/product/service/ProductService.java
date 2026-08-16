@@ -122,7 +122,7 @@ public class ProductService {
 
     // 등록(구매) 제품 목록 - 최근 등록 순. 날짜는 화면 표기 포맷 문자열로 완성해서 내려준다 (프론트 가공 불필요)
     public List<MyProductResponse> getMyProducts(Long userId) {
-        List<OrderItem> orders = orderItemRepository.findByUserIdOrderByOrderedAtDesc(userId);
+        List<OrderItem> orders = orderItemRepository.findByUserId(userId);
         Map<Long, Product> products = findProductsById(orders.stream().map(OrderItem::getProductId).toList());
 
         // 등록일 = 수령 시점(없으면 구매 시점) - 상세 화면의 registeredAt과 동일 기준.
@@ -154,7 +154,7 @@ public class ProductService {
                 .map(Store::getName)
                 .orElse(null);
 
-        LocalDateTime registeredAt = order.getReceivedAt() != null ? order.getReceivedAt() : order.getOrderedAt();
+        LocalDateTime registeredAt = resolveRegisteredAt(order);
         log.info("[ProductService] 등록 제품 상세 조회 완료 - userId={}, orderItemId={}", userId, orderItemId);
         return MyProductDetailResponse.builder()
                 .id(order.getId())
