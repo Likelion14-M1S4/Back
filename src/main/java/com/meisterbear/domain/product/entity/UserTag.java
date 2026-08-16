@@ -35,6 +35,11 @@ public class UserTag {
     @Column(name = "tag_type", nullable = false)
     private TagType tagType;
 
+    // STORE 태그가 어느 매장에서 발생했는지. 매장 태그 이력을 매장별로 묶는 키
+    // (PURCHASE 태그 등 매장과 무관한 태그는 null 허용)
+    @Column(name = "store_id")
+    private Long storeId;
+
     @Column(name = "tag_name", length = 255)
     private String tagName;
 
@@ -44,10 +49,11 @@ public class UserTag {
     private LocalDateTime taggedAt;
 
     @Builder
-    private UserTag(Long userId, Long productId, TagType tagType, String tagName) {
+    private UserTag(Long userId, Long productId, TagType tagType, String tagName, Long storeId) {
         this.userId = userId;
         this.productId = productId;
         this.tagType = tagType;
         this.tagName = tagName;
+        this.storeId = storeId;
     }
 }
