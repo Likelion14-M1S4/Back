@@ -22,7 +22,6 @@ import com.meisterbear.global.exception.CustomException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -126,11 +125,10 @@ public class NfcService {
         productStoreRepository.findFirstByProductIdOrderByStoreIdAsc(product.getId())
                 .ifPresent(productStore -> {
                     LocalDateTime dayStart = LocalDate.now().atStartOfDay();
-                    LocalDateTime dayEnd = dayStart.plusDays(1).minusNanos(1);
                     boolean alreadyTaggedToday = userTagRepository
-                            .existsByUserIdAndProductIdAndStoreIdAndTagTypeAndTaggedAtBetween(
+                            .existsByUserIdAndProductIdAndStoreIdAndTagTypeAndTaggedAtGreaterThanEqual(
                                     userId, product.getId(), productStore.getStoreId(), TagType.STORE,
-                                    dayStart, dayEnd);
+                                    dayStart);
                     if (alreadyTaggedToday) {
                         return;
                     }
@@ -160,13 +158,15 @@ public class NfcService {
     }
 
     // 컬렉션명: 태그한 제품의 시즌과 일치하는 참을 우선하고(시즌별로 컬렉션명이 다를 수 있음),
-    // 시즌이 없거나 해당 시즌 참이 없으면 시즌 무관 첫 참으로 폴백한다
+    // 시즌이 없거나 해당 시즌 참이 없거나 그 참의 컬렉션명이 비어 있으면 시즌 무관 첫 참으로 폴백한다
     private String resolveCollectionName(Long characterId, String season) {
         if (season != null && !season.isBlank()) {
-            Optional<Charm> seasonal =
-                    charmRepository.findFirstByCharacterIdAndSeasonOrderByIdAsc(characterId, season);
-            if (seasonal.isPresent()) {
-                return seasonal.get().getCollectionName();
+            String seasonalName = charmRepository
+                    .findFirstByCharacterIdAndSeasonOrderByIdAsc(characterId, season)
+                    .map(Charm::getCollectionName)
+                    .orElse(null);
+            if (seasonalName != null && !seasonalName.isBlank()) {
+                return seasonalName;
             }
         }
         return charmRepository.findFirstByCharacterIdOrderByIdAsc(characterId)
