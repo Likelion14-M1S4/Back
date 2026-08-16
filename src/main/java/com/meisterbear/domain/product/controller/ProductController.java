@@ -1,5 +1,6 @@
 package com.meisterbear.domain.product.controller;
 
+import com.meisterbear.domain.product.dto.response.MyProductDetailResponse;
 import com.meisterbear.domain.product.dto.response.MyProductResponse;
 import com.meisterbear.domain.product.dto.response.ProductDetailResponse;
 import com.meisterbear.domain.product.dto.response.RecommendPageResponse;
@@ -120,6 +121,52 @@ public class ProductController {
     public BaseResponse<List<MyProductResponse>> getMyProducts(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return BaseResponse.success(productService.getMyProducts(userDetails.getUser().getId()));
+    }
+
+    @Operation(
+            summary = "등록 제품 상세 조회",
+            description = "구매 기록 하나의 상세(색상/사이즈/구매·등록 일시/매장)를 반환한다. "
+                    + "{orderItemId}는 등록 제품 목록 응답의 id를 그대로 사용한다. 본인 구매 기록만 조회된다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "등록 제품 상세 조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "조회 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": {
+                                        "id": 1,
+                                        "name": "Stark 사이드 스터드 비세토스 백팩",
+                                        "colorLabel": "Soft Pink",
+                                        "sizeLabel": "미니",
+                                        "imageUrl": "https://meisterbear-images.s3.ap-northeast-2.amazonaws.com/product/1.png",
+                                        "purchasedAt": "2026.08.16 pm.03:00",
+                                        "registeredAt": "2026.08.16 pm.03:30",
+                                        "storeName": "MCM 롯데백화점 본점"
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "구매 내역 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "구매 내역 없음", value = """
+                                    {
+                                      "success": false,
+                                      "code": "PROD404",
+                                      "message": "구매 내역을 찾을 수 없습니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @GetMapping("/my/{orderItemId}")
+    public BaseResponse<MyProductDetailResponse> getMyProductDetail(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long orderItemId) {
+        MyProductDetailResponse response =
+                productService.getMyProductDetail(userDetails.getUser().getId(), orderItemId);
+        return BaseResponse.success(response);
     }
 
     @Operation(

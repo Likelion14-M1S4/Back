@@ -5,6 +5,7 @@ import com.meisterbear.domain.order.repository.OrderItemRepository;
 import com.meisterbear.domain.product.dto.response.BestsellerSectionResponse;
 import com.meisterbear.domain.product.dto.response.CurationSectionResponse;
 import com.meisterbear.domain.product.dto.response.JourneySectionResponse;
+import com.meisterbear.domain.product.dto.response.MyProductDetailResponse;
 import com.meisterbear.domain.product.dto.response.MyProductResponse;
 import com.meisterbear.domain.product.dto.response.ProductColorResponse;
 import com.meisterbear.domain.product.dto.response.ProductDetailResponse;
@@ -15,6 +16,8 @@ import com.meisterbear.domain.product.dto.response.SeasonProductListResponse;
 import com.meisterbear.domain.product.entity.Product;
 import com.meisterbear.domain.product.exception.ProductErrorCode;
 import com.meisterbear.domain.product.repository.ProductRepository;
+import com.meisterbear.domain.store.entity.Store;
+import com.meisterbear.domain.store.repository.StoreRepository;
 import com.meisterbear.domain.wishlist.repository.WishlistRepository;
 import com.meisterbear.global.exception.CustomException;
 import java.time.LocalDateTime;
@@ -58,6 +61,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final WishlistRepository wishlistRepository;
     private final OrderItemRepository orderItemRepository;
+    private final StoreRepository storeRepository;
 
     // 추천 페이지 한 방 조회. 히어로/여정/큐레이션은 고정 구성, 베스트셀러만 DB에서 채운다
     public RecommendPageResponse getRecommendPage() {
@@ -133,6 +137,29 @@ public class ProductService {
                 .toList();
         log.info("[ProductService] 등록 제품 목록 조회 완료 - userId={}, count={}", userId, responses.size());
         return responses;
+    }
+
+    // 등록 제품 상세. 본인 구매 기록만 조회 가능(userId 대조). registeredAt은 수령 시점, 미수령이면 구매 시점으로 대체
+    public MyProductDetailResponse getMyProductDetail(Long userId, Long orderItemId) {
+        OrderItem order = orderItemRepository.findByIdAndUserId(orderItemId, userId)
+                .orElseThrow(() -> new CustomException(ProductErrorCode.ORDER_NOT_FOUND));
+        Product product = productRepository.findById(order.getProductId()).orElse(null);
+        String storeName = storeRepository.findById(order.getStoreId())
+                .map(Store::getName)
+                .orElse(null);
+
+        LocalDateTime registeredAt = order.getReceivedAt() != null ? order.getReceivedAt() : order.getOrderedAt();
+        log.info("[ProductService] 등록 제품 상세 조회 완료 - userId={}, orderItemId={}", userId, orderItemId);
+        return MyProductDetailResponse.builder()
+                .id(order.getId())
+                .name(product != null ? product.getName() : null)
+                .colorLabel(product != null ? product.getColor() : null)
+                .sizeLabel(product != null ? product.getSize() : null)
+                .imageUrl(product != null ? product.getImgUrl() : null)
+                .purchasedAt(formatDateTime(order.getOrderedAt()))
+                .registeredAt(formatDateTime(registeredAt))
+                .storeName(storeName)
+                .build();
     }
 
     // N+1 방지를 위한 일괄 조회 (주문 목록 → 제품 맵)
