@@ -1,5 +1,6 @@
 package com.meisterbear.domain.nfc.controller;
 
+import com.meisterbear.domain.nfc.dto.response.CertificateResponse;
 import com.meisterbear.domain.nfc.dto.response.NfcVerifyResponse;
 import com.meisterbear.domain.nfc.service.NfcService;
 import com.meisterbear.global.common.BaseResponse;
@@ -73,5 +74,51 @@ public class NfcController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam String uid) {
         return BaseResponse.success(nfcService.verify(userDetails.getUser().getId(), uid));
+    }
+
+    @Operation(
+            summary = "정품 인증서 조회",
+            description = "정품 인증서를 반환한다.\n\n"
+                    + "- uid(NFC 태그 값)를 넘기면 그 제품의 내 구매 기록 기준으로 발급한다 (verify에서 받은 uid를 그대로 전달 권장).\n"
+                    + "- uid를 생략하면 로그인 유저의 최근 구매 1건 기준.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "정품 인증서 조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "조회 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": {
+                                        "productName": "Stark 사이드 스터드 비세토스 백팩",
+                                        "imageUrl": "https://meisterbear-images.s3.ap-northeast-2.amazonaws.com/product/1.png",
+                                        "orderNumber": "ORD-2026-000123",
+                                        "productNumber": "MCM-BP-000001",
+                                        "issuedAt": "2026.08.16",
+                                        "purchasedAt": "2026.08.16 pm.03:00",
+                                        "receivedAt": "2026.08.16 pm.03:30",
+                                        "seller": "엠씨엠코리아",
+                                        "purchasePlace": "MCM 롯데백화점 본점"
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "구매 내역 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "구매 내역 없음", value = """
+                                    {
+                                      "success": false,
+                                      "code": "NFC404",
+                                      "message": "인증서를 발급할 구매 내역이 없습니다.",
+                                      "data": null
+                                    }
+                                    """)))
+    })
+    @GetMapping("/certificate")
+    public BaseResponse<CertificateResponse> getCertificate(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) String uid) {
+        return BaseResponse.success(nfcService.getCertificate(userDetails.getUser().getId(), uid));
     }
 }

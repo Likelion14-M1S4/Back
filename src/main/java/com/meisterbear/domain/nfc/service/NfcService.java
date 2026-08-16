@@ -4,16 +4,24 @@ import com.meisterbear.domain.character.entity.Character;
 import com.meisterbear.domain.character.repository.CharacterRepository;
 import com.meisterbear.domain.charm.entity.Charm;
 import com.meisterbear.domain.charm.repository.CharmRepository;
+import com.meisterbear.domain.nfc.dto.response.CertificateResponse;
 import com.meisterbear.domain.nfc.dto.response.NfcCharacterResponse;
 import com.meisterbear.domain.nfc.dto.response.NfcVerifyResponse;
 import com.meisterbear.domain.nfc.exception.NfcErrorCode;
+import com.meisterbear.domain.order.entity.OrderItem;
+import com.meisterbear.domain.order.repository.OrderItemRepository;
 import com.meisterbear.domain.product.entity.Product;
 import com.meisterbear.domain.product.entity.TagType;
 import com.meisterbear.domain.product.entity.UserTag;
 import com.meisterbear.domain.product.repository.ProductRepository;
 import com.meisterbear.domain.product.repository.ProductStoreRepository;
 import com.meisterbear.domain.product.repository.UserTagRepository;
+import com.meisterbear.domain.store.entity.Store;
+import com.meisterbear.domain.store.repository.StoreRepository;
 import com.meisterbear.global.exception.CustomException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,11 +37,16 @@ public class NfcService {
     private static final String VERIFY_NEXT_PATH = "/store-tag/certificate";
     private static final String TYPE_PRODUCT = "PRODUCT";
 
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+    private static final String CERTIFICATE_SELLER_DEFAULT = "엠씨엠코리아";
+
     private final ProductRepository productRepository;
     private final ProductStoreRepository productStoreRepository;
     private final UserTagRepository userTagRepository;
     private final CharacterRepository characterRepository;
     private final CharmRepository charmRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final StoreRepository storeRepository;
 
     // NFC 태그 검증(제품 태그). 제품·캐릭터 정보를 내려주고, 부수효과로 방문 매장 태그 이력을 기록한다.
     // 실물 NFC에 각인된 URL의 uid가 그대로 들어온다
@@ -52,6 +65,56 @@ public class NfcService {
                 .character(findCharacter(product.getId()))
                 .nextPath(VERIFY_NEXT_PATH)
                 .build();
+    }
+
+    // 정품 인증서 조회. uid가 있으면 그 제품의 내 구매 기록, 없으면 최근 구매 1건 기준.
+    // 인증서 필드는 구매 기록(order_item)과 제품(product)에서 그대로 채운다
+    public CertificateResponse getCertificate(Long userId, String uid) {
+        OrderItem order = findCertificateOrder(userId, uid);
+        Product product = productRepository.findById(order.getProductId()).orElse(null);
+        String purchasePlace = storeRepository.findById(order.getStoreId())
+                .map(Store::getName)
+                .orElse(null);
+
+        // 발급일은 보증서 발급일(warranty_issued_at)을 우선하고, 없으면 구매일로 대체
+        LocalDate issuedAt = order.getWarrantyIssuedAt() != null
+                ? order.getWarrantyIssuedAt()
+                : order.getOrderedAt().toLocalDate();
+
+        log.info("[NfcService] 정품 인증서 조회 완료 - userId={}, orderItemId={}", userId, order.getId());
+        return CertificateResponse.builder()
+                .productName(product != null ? product.getName() : null)
+                .imageUrl(product != null ? product.getImgUrl() : null)
+                .orderNumber(order.getOrderNo())
+                .productNumber(product != null ? product.getSerialNo() : null)
+                .issuedAt(issuedAt.format(DATE_FORMAT))
+                .purchasedAt(formatDateTime(order.getOrderedAt()))
+                .receivedAt(formatDateTime(order.getReceivedAt()))
+                .seller(order.getSeller() != null ? order.getSeller() : CERTIFICATE_SELLER_DEFAULT)
+                .purchasePlace(purchasePlace)
+                .build();
+    }
+
+    private OrderItem findCertificateOrder(Long userId, String uid) {
+        if (uid != null && !uid.isBlank()) {
+            Product product = productRepository.findByNfcUid(uid)
+                    .orElseThrow(() -> new CustomException(NfcErrorCode.NFC_NOT_FOUND));
+            return orderItemRepository.findFirstByUserIdAndProductIdOrderByOrderedAtDesc(userId, product.getId())
+                    .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
+        }
+        return orderItemRepository.findFirstByUserIdOrderByOrderedAtDesc(userId)
+                .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
+    }
+
+    // "2026.08.16 pm.03:00" - 프론트 화면이 쓰는 날짜+시간 표기 포맷 (12시간제, am/pm 소문자)
+    private String formatDateTime(LocalDateTime dateTime) {
+        if (dateTime == null) {
+            return null;
+        }
+        int hour = dateTime.getHour();
+        String meridiem = hour < 12 ? "am" : "pm";
+        int hour12 = hour % 12 == 0 ? 12 : hour % 12;
+        return String.format("%s %s.%02d:%02d", dateTime.format(DATE_FORMAT), meridiem, hour12, dateTime.getMinute());
     }
 
     // 태그한 제품의 진열 매장으로 방문 이력(user_tag STORE)을 남긴다.
