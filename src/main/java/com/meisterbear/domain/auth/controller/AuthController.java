@@ -47,12 +47,26 @@ public class AuthController {
     @Value("${kakao.front-redirect-uris}")
     private List<String> frontRedirectUris;
 
-    // 허용 목록이 비면 두 리다이렉트 엔드포인트가 요청마다 500이 나므로 기동 시점에 바로 실패시킨다
+    // 허용 목록이 비면 두 리다이렉트 엔드포인트가 요청마다 500이 나므로 기동 시점에 바로 실패시킨다.
+    // 빈 원소도 걸러낸다 - env가 ","나 공백이면 [""]로 바인딩되어 isEmpty 검사를 통과한 뒤
+    // get(0)=""가 상대경로 리다이렉트(백엔드 호스트로 토큰 전달)를 만들기 때문
     @PostConstruct
     private void validateFrontRedirectUris() {
-        if (frontRedirectUris == null || frontRedirectUris.isEmpty()) {
+        frontRedirectUris = frontRedirectUris == null
+                ? List.of()
+                : frontRedirectUris.stream().filter(uri -> !uri.isBlank()).toList();
+        if (frontRedirectUris.isEmpty()) {
             throw new IllegalStateException("kakao.front-redirect-uris가 비어 있습니다 - KAKAO_FRONT_REDIRECT_URIS 확인 필요");
         }
+    }
+
+    // 로그 위조(CRLF 인젝션) 방지 - 비인증 요청 파라미터는 개행 제거·길이 제한 후에만 기록한다
+    private static String sanitizeForLog(String value) {
+        if (value == null) {
+            return null;
+        }
+        String cleaned = value.replaceAll("[\\r\\n]", "");
+        return cleaned.length() > 100 ? cleaned.substring(0, 100) + "..." : cleaned;
     }
 
     // 허용 목록에 있는 origin만 통과, 그 외(null·미등록)는 첫 항목으로 대체 - state 오픈 리다이렉트 방지
@@ -61,7 +75,7 @@ public class AuthController {
             return origin;
         }
         if (origin != null) {
-            log.warn("[AuthController] 허용 목록에 없는 복귀 origin 요청 - origin={}", origin);
+            log.warn("[AuthController] 허용 목록에 없는 복귀 origin 요청 - origin={}", sanitizeForLog(origin));
         }
         return frontRedirectUris.get(0);
     }
@@ -100,7 +114,7 @@ public class AuthController {
         String front = resolveFrontOrigin(state);
         // 동의 화면 취소(error=access_denied) 또는 코드 누락 - 로그인 화면으로 복귀
         if (error != null || code == null || code.isBlank()) {
-            log.warn("[AuthController] 카카오 콜백 취소/코드 누락 - error={}, front={}", error, front);
+            log.warn("[AuthController] 카카오 콜백 취소/코드 누락 - error={}, front={}", sanitizeForLog(error), front);
             response.sendRedirect(front + "/login?error=kakao_cancelled");
             return;
         }
