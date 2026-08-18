@@ -16,11 +16,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @Tag(name = "Auth", description = "인증 API")
 @RestController
 @RequiredArgsConstructor
@@ -44,10 +47,21 @@ public class AuthController {
     @Value("${kakao.front-redirect-uris}")
     private List<String> frontRedirectUris;
 
+    // 허용 목록이 비면 두 리다이렉트 엔드포인트가 요청마다 500이 나므로 기동 시점에 바로 실패시킨다
+    @PostConstruct
+    private void validateFrontRedirectUris() {
+        if (frontRedirectUris == null || frontRedirectUris.isEmpty()) {
+            throw new IllegalStateException("kakao.front-redirect-uris가 비어 있습니다 - KAKAO_FRONT_REDIRECT_URIS 확인 필요");
+        }
+    }
+
     // 허용 목록에 있는 origin만 통과, 그 외(null·미등록)는 첫 항목으로 대체 - state 오픈 리다이렉트 방지
     private String resolveFrontOrigin(String origin) {
         if (origin != null && frontRedirectUris.contains(origin)) {
             return origin;
+        }
+        if (origin != null) {
+            log.warn("[AuthController] 허용 목록에 없는 복귀 origin 요청 - origin={}", origin);
         }
         return frontRedirectUris.get(0);
     }
@@ -86,20 +100,29 @@ public class AuthController {
         String front = resolveFrontOrigin(state);
         // 동의 화면 취소(error=access_denied) 또는 코드 누락 - 로그인 화면으로 복귀
         if (error != null || code == null || code.isBlank()) {
+            log.warn("[AuthController] 카카오 콜백 취소/코드 누락 - error={}, front={}", error, front);
             response.sendRedirect(front + "/login?error=kakao_cancelled");
             return;
         }
+        // 브라우저 내비게이션 엔드포인트는 어떤 실패든 리다이렉트로 끝나야 한다
+        // - GlobalExceptionHandler로 흘리면 사용자 화면에 JSON이 그대로 렌더링되므로 여기서 전부 흡수한다
+        String target;
         try {
             // redirectUri=null → 서버 설정값(백엔드 콜백 주소) 사용. authorize에 쓴 값과 일치해야 교환이 성공한다
             LoginResponse login = authService.kakaoLogin(code, null);
-            response.sendRedirect(front + "/oauth/kakao"
+            target = front + "/oauth/kakao"
                     + "#accessToken=" + login.getAccessToken()
                     + "&refreshToken=" + login.getRefreshToken()
-                    + "&isNewUser=" + login.isNewUser());
+                    + "&isNewUser=" + login.isNewUser();
+            log.info("[AuthController] 카카오 콜백 로그인 성공 - front={}, isNewUser={}", front, login.isNewUser());
         } catch (CustomException e) {
-            // 브라우저 내비게이션이라 JSON(GlobalExceptionHandler) 대신 리다이렉트로 실패를 알린다
-            response.sendRedirect(front + "/login?error=" + e.getErrorCode().getCode());
+            log.warn("[AuthController] 카카오 콜백 로그인 실패 - code={}, front={}", e.getErrorCode().getCode(), front);
+            target = front + "/login?error=" + e.getErrorCode().getCode();
+        } catch (Exception e) {
+            log.error("[AuthController] 카카오 콜백 처리 중 예기치 못한 오류 - front={}", front, e);
+            target = front + "/login?error=server_error";
         }
+        response.sendRedirect(target);
     }
 
     @Operation(
