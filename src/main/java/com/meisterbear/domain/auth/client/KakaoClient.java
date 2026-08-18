@@ -1,6 +1,7 @@
 package com.meisterbear.domain.auth.client;
 
 import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Slf4j
 @Component
@@ -19,6 +21,8 @@ public class KakaoClient {
     // 카카오 서버가 느리거나 응답이 안 오는 상황에서 요청 스레드가 무한정 잡혀있지 않도록 명시적 타임아웃을 둔다
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
+
+    private static final String AUTHORIZE_ENDPOINT = "https://kauth.kakao.com/oauth/authorize";
 
     private final RestClient apiClient;   // kapi.kakao.com - 사용자 정보 조회
     private final RestClient authClient;  // kauth.kakao.com - 인가 코드 → 토큰 교환
@@ -42,6 +46,19 @@ public class KakaoClient {
                 .baseUrl(baseUrl)
                 .requestFactory(requestFactory)
                 .build();
+    }
+
+    // 카카오 인가 페이지 URL을 조립한다. state에는 로그인 완료 후 복귀할 프론트 origin을 싣는다
+    // - redirect_uri에는 임의 쿼리 파라미터를 붙일 수 없다는 카카오 정책 때문에 복귀 주소는 state로 전달한다
+    public String buildAuthorizeUrl(String state) {
+        return UriComponentsBuilder.fromUriString(AUTHORIZE_ENDPOINT)
+                .queryParam("response_type", "code")
+                .queryParam("client_id", clientId)
+                .queryParam("redirect_uri", defaultRedirectUri)
+                .queryParam("state", state)
+                .encode(StandardCharsets.UTF_8)
+                .build()
+                .toUriString();
     }
 
     // 인가 코드를 카카오 액세스 토큰으로 교환한다. 토큰 교환은 서버에서만 가능하며 client_id는 REST API 키를 쓴다.

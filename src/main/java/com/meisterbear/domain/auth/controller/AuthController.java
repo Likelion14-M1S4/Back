@@ -1,5 +1,6 @@
 package com.meisterbear.domain.auth.controller;
 
+import com.meisterbear.domain.auth.client.KakaoClient;
 import com.meisterbear.domain.auth.dto.request.KakaoLoginRequest;
 import com.meisterbear.domain.auth.dto.request.TokenReissueRequest;
 import com.meisterbear.domain.auth.dto.response.LoginResponse;
@@ -14,13 +15,19 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Auth", description = "인증 API")
@@ -30,6 +37,35 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final KakaoClient kakaoClient;
+
+    // 로그인 완료 후 복귀를 허용할 프론트 origin 목록 (콤마 구분 프로퍼티 → List 자동 변환)
+    @Value("${kakao.front-redirect-uris}")
+    private List<String> frontRedirectUris;
+
+    // 허용 목록에 있는 origin만 통과, 그 외(null·미등록)는 첫 항목으로 대체 - state 오픈 리다이렉트 방지
+    private String resolveFrontOrigin(String origin) {
+        if (origin != null && frontRedirectUris.contains(origin)) {
+            return origin;
+        }
+        return frontRedirectUris.get(0);
+    }
+
+    @Operation(
+            summary = "카카오 인가 요청 리다이렉트",
+            description = """
+                    브라우저를 카카오 인가 페이지로 302 리다이렉트한다. (브라우저 내비게이션 전용 - Swagger에서 실행 불가)
+
+                    - 프론트는 로그인 버튼에서 이 URL로 이동만 하면 된다: `/api/auth/kakao/authorize?redirect={프론트 origin}`
+                    - `redirect`는 허용 목록 검증 후 state로 카카오에 전달되어, 로그인 완료 시 복귀 주소로 쓰인다.
+                    - 허용 목록에 없거나 생략하면 기본 주소(목록 첫 항목)로 복귀한다.
+                    - 이 API는 인증이 필요 없다(Authorization 헤더 X).""")
+    @GetMapping("/kakao/authorize")
+    public void kakaoAuthorize(@RequestParam(required = false) String redirect,
+                               HttpServletResponse response) throws IOException {
+        String frontOrigin = resolveFrontOrigin(redirect);
+        response.sendRedirect(kakaoClient.buildAuthorizeUrl(frontOrigin));
+    }
 
     @Operation(
             summary = "카카오 로그인",
