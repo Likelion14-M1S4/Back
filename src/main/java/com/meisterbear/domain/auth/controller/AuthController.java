@@ -7,6 +7,7 @@ import com.meisterbear.domain.auth.dto.response.LoginResponse;
 import com.meisterbear.domain.auth.dto.response.TokenResponse;
 import com.meisterbear.domain.auth.service.AuthService;
 import com.meisterbear.global.common.BaseResponse;
+import com.meisterbear.global.exception.CustomException;
 import com.meisterbear.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -65,6 +66,40 @@ public class AuthController {
                                HttpServletResponse response) throws IOException {
         String frontOrigin = resolveFrontOrigin(redirect);
         response.sendRedirect(kakaoClient.buildAuthorizeUrl(frontOrigin));
+    }
+
+    @Operation(
+            summary = "카카오 콜백 처리",
+            description = """
+                    카카오가 인가 코드를 전달하는 콜백. 코드를 교환해 JWT를 발급하고 프론트로 302 리다이렉트한다.
+                    (카카오 콘솔에 등록된 Redirect URI - 브라우저 내비게이션 전용, 프론트가 직접 호출하지 않는다)
+
+                    - 성공: `{프론트}/oauth/kakao#accessToken=..&refreshToken=..&isNewUser=..` (fragment라 서버 로그·Referer에 안 남음)
+                    - 동의 취소·코드 누락: `{프론트}/login?error=kakao_cancelled`
+                    - 교환 실패: `{프론트}/login?error=AUTH401` 형태로 에러코드 전달
+                    - 이 API는 인증이 필요 없다(Authorization 헤더 X).""")
+    @GetMapping("/kakao/callback")
+    public void kakaoCallback(@RequestParam(required = false) String code,
+                              @RequestParam(required = false) String state,
+                              @RequestParam(required = false) String error,
+                              HttpServletResponse response) throws IOException {
+        String front = resolveFrontOrigin(state);
+        // 동의 화면 취소(error=access_denied) 또는 코드 누락 - 로그인 화면으로 복귀
+        if (error != null || code == null || code.isBlank()) {
+            response.sendRedirect(front + "/login?error=kakao_cancelled");
+            return;
+        }
+        try {
+            // redirectUri=null → 서버 설정값(백엔드 콜백 주소) 사용. authorize에 쓴 값과 일치해야 교환이 성공한다
+            LoginResponse login = authService.kakaoLogin(code, null);
+            response.sendRedirect(front + "/oauth/kakao"
+                    + "#accessToken=" + login.getAccessToken()
+                    + "&refreshToken=" + login.getRefreshToken()
+                    + "&isNewUser=" + login.isNewUser());
+        } catch (CustomException e) {
+            // 브라우저 내비게이션이라 JSON(GlobalExceptionHandler) 대신 리다이렉트로 실패를 알린다
+            response.sendRedirect(front + "/login?error=" + e.getErrorCode().getCode());
+        }
     }
 
     @Operation(
