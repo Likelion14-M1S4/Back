@@ -39,6 +39,14 @@ public class KakaoClient {
         this.defaultRedirectUri = defaultRedirectUri;
         this.apiClient = buildClient("https://kapi.kakao.com");
         this.authClient = buildClient("https://kauth.kakao.com");
+        // 콜백 플로우는 이 값이 필수지만, redirectUri를 직접 넘기는 POST 플로우는 없이도 동작하므로
+        // 기동은 막지 않고 경고만 남긴다 (미설정 시 인가 단계에서 KOE 에러로 나타나는 원인 추적용)
+        if (clientId == null || clientId.isBlank()) {
+            log.warn("[KakaoClient] KAKAO_CLIENT_ID 미설정 - 카카오 로그인 전체가 동작하지 않습니다");
+        }
+        if (defaultRedirectUri == null || defaultRedirectUri.isBlank()) {
+            log.warn("[KakaoClient] KAKAO_REDIRECT_URI 미설정 - 콜백 방식 로그인(/api/auth/kakao/authorize)이 동작하지 않습니다");
+        }
     }
 
     private static RestClient buildClient(String baseUrl) {
