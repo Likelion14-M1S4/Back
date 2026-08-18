@@ -1,11 +1,13 @@
 package com.meisterbear.domain.auth.controller;
 
+import com.meisterbear.domain.auth.client.KakaoClient;
 import com.meisterbear.domain.auth.dto.request.KakaoLoginRequest;
 import com.meisterbear.domain.auth.dto.request.TokenReissueRequest;
 import com.meisterbear.domain.auth.dto.response.LoginResponse;
 import com.meisterbear.domain.auth.dto.response.TokenResponse;
 import com.meisterbear.domain.auth.service.AuthService;
 import com.meisterbear.global.common.BaseResponse;
+import com.meisterbear.global.exception.CustomException;
 import com.meisterbear.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,15 +16,24 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import java.io.IOException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @Tag(name = "Auth", description = "인증 API")
 @RestController
 @RequiredArgsConstructor
@@ -30,6 +41,103 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final KakaoClient kakaoClient;
+
+    // 로그인 완료 후 복귀를 허용할 프론트 origin 목록 (콤마 구분 프로퍼티 → List 자동 변환)
+    @Value("${kakao.front-redirect-uris}")
+    private List<String> frontRedirectUris;
+
+    // 허용 목록이 비면 두 리다이렉트 엔드포인트가 요청마다 500이 나므로 기동 시점에 바로 실패시킨다.
+    // 빈 원소도 걸러낸다 - env가 ","나 공백이면 [""]로 바인딩되어 isEmpty 검사를 통과한 뒤
+    // get(0)=""가 상대경로 리다이렉트(백엔드 호스트로 토큰 전달)를 만들기 때문
+    @PostConstruct
+    private void validateFrontRedirectUris() {
+        frontRedirectUris = frontRedirectUris == null
+                ? List.of()
+                : frontRedirectUris.stream().filter(uri -> !uri.isBlank()).toList();
+        if (frontRedirectUris.isEmpty()) {
+            throw new IllegalStateException("kakao.front-redirect-uris가 비어 있습니다 - KAKAO_FRONT_REDIRECT_URIS 확인 필요");
+        }
+    }
+
+    // 로그 위조(CRLF 인젝션) 방지 - 비인증 요청 파라미터는 개행 제거·길이 제한 후에만 기록한다
+    private static String sanitizeForLog(String value) {
+        if (value == null) {
+            return null;
+        }
+        String cleaned = value.replaceAll("[\\r\\n]", "");
+        return cleaned.length() > 100 ? cleaned.substring(0, 100) + "..." : cleaned;
+    }
+
+    // 허용 목록에 있는 origin만 통과, 그 외(null·미등록)는 첫 항목으로 대체 - state 오픈 리다이렉트 방지
+    private String resolveFrontOrigin(String origin) {
+        if (origin != null && frontRedirectUris.contains(origin)) {
+            return origin;
+        }
+        if (origin != null) {
+            log.warn("[AuthController] 허용 목록에 없는 복귀 origin 요청 - origin={}", sanitizeForLog(origin));
+        }
+        return frontRedirectUris.get(0);
+    }
+
+    @Operation(
+            summary = "카카오 인가 요청 리다이렉트",
+            description = """
+                    브라우저를 카카오 인가 페이지로 302 리다이렉트한다. (브라우저 내비게이션 전용 - Swagger에서 실행 불가)
+
+                    - 프론트는 로그인 버튼에서 이 URL로 이동만 하면 된다: `/api/auth/kakao/authorize?redirect={프론트 origin}`
+                    - `redirect`는 허용 목록 검증 후 state로 카카오에 전달되어, 로그인 완료 시 복귀 주소로 쓰인다.
+                    - 허용 목록에 없거나 생략하면 기본 주소(목록 첫 항목)로 복귀한다.
+                    - 이 API는 인증이 필요 없다(Authorization 헤더 X).""")
+    @GetMapping("/kakao/authorize")
+    public void kakaoAuthorize(@RequestParam(required = false) String redirect,
+                               HttpServletResponse response) throws IOException {
+        String frontOrigin = resolveFrontOrigin(redirect);
+        response.sendRedirect(kakaoClient.buildAuthorizeUrl(frontOrigin));
+    }
+
+    @Operation(
+            summary = "카카오 콜백 처리",
+            description = """
+                    카카오가 인가 코드를 전달하는 콜백. 코드를 교환해 JWT를 발급하고 프론트로 302 리다이렉트한다.
+                    (카카오 콘솔에 등록된 Redirect URI - 브라우저 내비게이션 전용, 프론트가 직접 호출하지 않는다)
+
+                    - 성공: `{프론트}/oauth/kakao#accessToken=..&refreshToken=..&isNewUser=..` (fragment라 서버 로그·Referer에 안 남음)
+                    - 동의 취소·코드 누락: `{프론트}/login?error=kakao_cancelled`
+                    - 교환 실패: `{프론트}/login?error=AUTH401` 형태로 에러코드 전달
+                    - 이 API는 인증이 필요 없다(Authorization 헤더 X).""")
+    @GetMapping("/kakao/callback")
+    public void kakaoCallback(@RequestParam(required = false) String code,
+                              @RequestParam(required = false) String state,
+                              @RequestParam(required = false) String error,
+                              HttpServletResponse response) throws IOException {
+        String front = resolveFrontOrigin(state);
+        // 동의 화면 취소(error=access_denied) 또는 코드 누락 - 로그인 화면으로 복귀
+        if (error != null || code == null || code.isBlank()) {
+            log.warn("[AuthController] 카카오 콜백 취소/코드 누락 - error={}, front={}", sanitizeForLog(error), front);
+            response.sendRedirect(front + "/login?error=kakao_cancelled");
+            return;
+        }
+        // 브라우저 내비게이션 엔드포인트는 어떤 실패든 리다이렉트로 끝나야 한다
+        // - GlobalExceptionHandler로 흘리면 사용자 화면에 JSON이 그대로 렌더링되므로 여기서 전부 흡수한다
+        String target;
+        try {
+            // redirectUri=null → 서버 설정값(백엔드 콜백 주소) 사용. authorize에 쓴 값과 일치해야 교환이 성공한다
+            LoginResponse login = authService.kakaoLogin(code, null);
+            target = front + "/oauth/kakao"
+                    + "#accessToken=" + login.getAccessToken()
+                    + "&refreshToken=" + login.getRefreshToken()
+                    + "&isNewUser=" + login.isNewUser();
+            log.info("[AuthController] 카카오 콜백 로그인 성공 - front={}, isNewUser={}", front, login.isNewUser());
+        } catch (CustomException e) {
+            log.warn("[AuthController] 카카오 콜백 로그인 실패 - code={}, front={}", e.getErrorCode().getCode(), front);
+            target = front + "/login?error=" + e.getErrorCode().getCode();
+        } catch (Exception e) {
+            log.error("[AuthController] 카카오 콜백 처리 중 예기치 못한 오류 - front={}", front, e);
+            target = front + "/login?error=server_error";
+        }
+        response.sendRedirect(target);
+    }
 
     @Operation(
             summary = "카카오 로그인",

@@ -30,7 +30,11 @@ cors:
 
 kakao:
   client-id: ${KAKAO_CLIENT_ID:}
-  redirect-uri: ${KAKAO_REDIRECT_URI:}
+  client-secret: ${KAKAO_CLIENT_SECRET:}       # 콘솔 클라이언트 시크릿이 활성화(ON)일 때만 주입 - 현재 OFF라 비워둠
+  redirect-uri: ${KAKAO_REDIRECT_URI:}         # 백엔드 콜백 주소 (= .../api/auth/kakao/callback)
+  # 로그인 완료 후 복귀를 허용할 프론트 origin 목록. state 값을 이 목록으로 검증해 오픈 리다이렉트를 막는다.
+  # 첫 항목이 state 유실 시 폴백 기본값이므로 배포 origin을 앞에 둔다 (로컬은 항상 ?redirect=로 명시 전달)
+  front-redirect-uris: ${KAKAO_FRONT_REDIRECT_URIS:https://front-ero.pages.dev,http://localhost:5173}
 
 auth:
   # dev 전용 /api/auth/test-token 보호용 공유 시크릿. 미설정이면 해당 엔드포인트는 비활성화(라이브 오노출 방지).
