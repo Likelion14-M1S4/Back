@@ -27,12 +27,15 @@ public class KakaoClient {
     private final RestClient apiClient;   // kapi.kakao.com - 사용자 정보 조회
     private final RestClient authClient;  // kauth.kakao.com - 인가 코드 → 토큰 교환
     private final String clientId;
+    private final String clientSecret;
     private final String defaultRedirectUri;
 
     public KakaoClient(
             @Value("${kakao.client-id}") String clientId,
+            @Value("${kakao.client-secret}") String clientSecret,
             @Value("${kakao.redirect-uri}") String defaultRedirectUri) {
         this.clientId = clientId;
+        this.clientSecret = clientSecret;
         this.defaultRedirectUri = defaultRedirectUri;
         this.apiClient = buildClient("https://kapi.kakao.com");
         this.authClient = buildClient("https://kauth.kakao.com");
@@ -70,6 +73,10 @@ public class KakaoClient {
         form.add("client_id", clientId);
         form.add("redirect_uri", resolveRedirectUri(redirectUri));
         form.add("code", code);
+        // 콘솔 [플랫폼 키 > REST API 키 > 클라이언트 시크릿]이 활성화(ON)면 필수 - 누락 시 KOE010(Bad client credentials)
+        if (clientSecret != null && !clientSecret.isBlank()) {
+            form.add("client_secret", clientSecret);
+        }
         return authClient.post()
                 .uri("/oauth/token")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
