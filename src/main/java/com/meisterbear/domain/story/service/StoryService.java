@@ -201,6 +201,14 @@ public class StoryService {
         return isSeasonCompleted(userId, story.getCharacterId(), story.getSeason());
     }
 
+    // DB에 있는 유일한 시즌(findStories와 동일하게 가장 첫 스토리 기준)을 이 유저가 완주했는지.
+    // 참 구매(수령) 가능 목록 조회에서, 캐릭터/시즌 구분 없이 전체 참 노출 여부를 판단하는 데 쓰인다.
+    public boolean isCurrentSeasonCompleted(Long userId) {
+        return storyRepository.findFirstByOrderByIdAsc()
+                .map(story -> isSeasonCompleted(userId, story))
+                .orElse(false);
+    }
+
     // 특정 캐릭터×시즌의 모든 챕터를 이 유저가 완주했는지. 참 구매(수령) 가능 여부 판단에도 재사용된다.
     public boolean isSeasonCompleted(Long userId, Long characterId, String season) {
         List<Story> seasonStories = storyRepository.findByCharacterIdAndSeason(characterId, season);
