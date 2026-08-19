@@ -31,9 +31,10 @@ public class StoryController {
 
     @Operation(
             summary = "스토리 챕터 목록 조회",
-            description = "현재 시즌의 챕터 목록을 unlock_order 순으로 반환한다. 챕터별 해금 여부(isLocked)는 직전 챕터를 "
-                    + "이 유저가 완주했는지로 판단한다(1번 챕터는 항상 해금). currentSeason은 유저가 가장 최근 등록한 제품의 "
-                    + "캐릭터를 기준으로 판단하며, 등록된 제품이 없으면 currentSeason은 null로 응답한다.")
+            description = "유저가 가장 최근 등록한 제품의 캐릭터에 연결된 챕터 목록을 unlock_order 순으로 반환한다 "
+                    + "(시즌은 하나만 운영되므로 별도 시즌 판별 없이 그 캐릭터의 스토리를 그대로 반환). "
+                    + "챕터별 해금 여부(isLocked)는 직전 챕터를 이 유저가 완주했는지로 판단한다(1번 챕터는 항상 해금). "
+                    + "등록된 제품이 없거나 그 캐릭터에 스토리가 없으면 season은 null, stories는 빈 배열로 응답한다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "스토리 목록 조회 성공",
                     content = @Content(mediaType = "application/json",
@@ -44,42 +45,40 @@ public class StoryController {
                                       "code": 200,
                                       "message": "요청이 성공적으로 처리되었습니다.",
                                       "data": {
-                                        "currentSeason": {
-                                          "season": "AW2026",
-                                          "stories": [
-                                            {
-                                              "id": 1,
-                                              "title": "Introduction",
-                                              "unlockOrder": 1,
-                                              "isLocked": false,
-                                              "isDone": true,
-                                              "readAt": "2026-08-10T11:00:00",
-                                              "teaser": null,
-                                              "thumbnailUrl": "https://cdn.meisterbear.com/story/1-thumb.png"
-                                            },
-                                            {
-                                              "id": 2,
-                                              "title": "Collection History",
-                                              "unlockOrder": 2,
-                                              "isLocked": false,
-                                              "isDone": true,
-                                              "readAt": "2026-08-11T09:30:00",
-                                              "teaser": null,
-                                              "thumbnailUrl": "https://cdn.meisterbear.com/story/2-thumb.png"
-                                            },
-                                            {
-                                              "id": 3,
-                                              "title": "Craftmanship",
-                                              "unlockOrder": 3,
-                                              "isLocked": false,
-                                              "isDone": false,
-                                              "readAt": null,
-                                              "teaser": "제품을 만든 장인과 공방 속의 이야기를 들여다봅니다.",
-                                              "thumbnailUrl": "https://cdn.meisterbear.com/story/3-thumb.png"
-                                            }
-                                          ],
-                                          "isAllCompleted": false
-                                        }
+                                        "season": "AW2026",
+                                        "stories": [
+                                          {
+                                            "id": 1,
+                                            "title": "Introduction",
+                                            "unlockOrder": 1,
+                                            "isLocked": false,
+                                            "isDone": true,
+                                            "readAt": "2026-08-10T11:00:00",
+                                            "teaser": null,
+                                            "thumbnailUrl": "https://cdn.meisterbear.com/story/1-thumb.png"
+                                          },
+                                          {
+                                            "id": 2,
+                                            "title": "Collection History",
+                                            "unlockOrder": 2,
+                                            "isLocked": false,
+                                            "isDone": true,
+                                            "readAt": "2026-08-11T09:30:00",
+                                            "teaser": null,
+                                            "thumbnailUrl": "https://cdn.meisterbear.com/story/2-thumb.png"
+                                          },
+                                          {
+                                            "id": 3,
+                                            "title": "Craftmanship",
+                                            "unlockOrder": 3,
+                                            "isLocked": false,
+                                            "isDone": false,
+                                            "readAt": null,
+                                            "teaser": "제품을 만든 장인과 공방 속의 이야기를 들여다봅니다.",
+                                            "thumbnailUrl": "https://cdn.meisterbear.com/story/3-thumb.png"
+                                          }
+                                        ],
+                                        "isAllCompleted": false
                                       }
                                     }
                                     """))),
@@ -162,7 +161,8 @@ public class StoryController {
     @Operation(
             summary = "스토리 챕터 완료",
             description = "그 챕터의 마지막 장면(scene)까지 다 본 뒤 완료 버튼을 눌렀을 때 호출한다. "
-                    + "이 챕터가 속한 시즌의 마지막 챕터였다면 isSeasonCompleted=true와 캐릭터 정보를 함께 반환한다.")
+                    + "이 챕터가 속한 시즌의 마지막 챕터였다면 isSeasonCompleted=true와 시즌 보상 참 목록(charms)을 함께 반환한다. "
+                    + "charms는 화면 노출용 정보이며 실제 참 수령(보유) 처리는 하지 않는다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "완료 처리 성공",
                     content = @Content(mediaType = "application/json",
@@ -177,8 +177,13 @@ public class StoryController {
                                         "isDone": true,
                                         "readAt": "2026-08-13T13:20:00",
                                         "isSeasonCompleted": true,
-                                        "characterName": "비세토스 라이언",
-                                        "characterImgUrl": "https://cdn.meisterbear.com/character/1.png"
+                                        "charms": [
+                                          { "id": 1, "name": "라이언 참", "imgUrl": "https://cdn.meisterbear.com/charm/1.png", "collectionName": "라이언 컬렉션" },
+                                          { "id": 2, "name": "라이언 참2", "imgUrl": "https://cdn.meisterbear.com/charm/2.png", "collectionName": "라이언 컬렉션" },
+                                          { "id": 3, "name": "라이언 참3", "imgUrl": "https://cdn.meisterbear.com/charm/3.png", "collectionName": "라이언 컬렉션" },
+                                          { "id": 4, "name": "라이언 참4", "imgUrl": "https://cdn.meisterbear.com/charm/4.png", "collectionName": "라이언 컬렉션" },
+                                          { "id": 5, "name": "라이언 참5", "imgUrl": "https://cdn.meisterbear.com/charm/5.png", "collectionName": "라이언 컬렉션" }
+                                        ]
                                       }
                                     }
                                     """))),

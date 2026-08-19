@@ -10,9 +10,7 @@ import com.meisterbear.domain.chat.dto.response.ChatMessageResultResponse;
 import com.meisterbear.domain.chat.dto.response.StarterChoiceResponse;
 import com.meisterbear.domain.chat.exception.ChatErrorCode;
 import com.meisterbear.domain.character.entity.Character;
-import com.meisterbear.domain.character.entity.CollectionStatus;
 import com.meisterbear.domain.character.repository.CharacterRepository;
-import com.meisterbear.domain.character.repository.CollectionRepository;
 import com.meisterbear.domain.product.repository.ProductRepository;
 import com.meisterbear.domain.user.entity.User;
 import com.meisterbear.domain.user.exception.UserErrorCode;
@@ -41,7 +39,6 @@ public class ChatService {
     );
 
     private final CharacterRepository characterRepository;
-    private final CollectionRepository collectionRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final OpenAiClient openAiClient;
@@ -49,7 +46,7 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public ChatEntryResponse findEntry(Long userId, Long characterId) {
-        Character character = resolveOwnedCharacter(userId, characterId);
+        Character character = resolveCharacter(characterId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
@@ -66,7 +63,7 @@ public class ChatService {
 
     // AI 호출이 실패하거나 지연돼도 오류를 던지지 않고 캐릭터 톤 대체 문구로 항상 200을 반환한다
     public ChatMessageResultResponse sendMessage(Long userId, SendChatMessageRequest request) {
-        Character character = resolveOwnedCharacter(userId, request.getCharacterId());
+        Character character = resolveCharacter(request.getCharacterId());
 
         String reply;
         try {
@@ -93,7 +90,7 @@ public class ChatService {
     // 분석이 실패해도 오류를 던지지 않고, 캐릭터가 속한 제품의 소재 기준 고정 케어 가이드로 대체해 항상 200을 반환한다.
     public ChatMessageResultResponse inspect(Long userId, Long characterId, String historyJson,
                                               MultipartFile image) {
-        Character character = resolveOwnedCharacter(userId, characterId);
+        Character character = resolveCharacter(characterId);
 
         String reply;
         try {
@@ -132,16 +129,10 @@ public class ChatService {
                 .orElseGet(() -> CareGuideTemplate.guideFor(null));
     }
 
-    private Character resolveOwnedCharacter(Long userId, Long characterId) {
-        Character character = characterRepository.findById(characterId)
+    // 보유(수집) 여부와 무관하게 캐릭터가 존재하기만 하면 대화 가능하다
+    private Character resolveCharacter(Long characterId) {
+        return characterRepository.findById(characterId)
                 .orElseThrow(() -> new CustomException(ChatErrorCode.CHARACTER_NOT_FOUND));
-
-        boolean owned = collectionRepository.existsByUserIdAndCharacterIdAndStatus(
-                userId, characterId, CollectionStatus.OWNED);
-        if (!owned) {
-            throw new CustomException(ChatErrorCode.CHARACTER_NOT_OWNED);
-        }
-        return character;
     }
 
     // history의 role(USER/CHARACTER)을 OpenAI 표기(user/assistant)로 변환. 알 수 없는 값은 안전하게 user로 취급
