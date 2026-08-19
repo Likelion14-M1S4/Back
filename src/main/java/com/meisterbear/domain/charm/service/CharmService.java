@@ -1,6 +1,5 @@
 package com.meisterbear.domain.charm.service;
 
-import com.meisterbear.domain.charm.dto.response.CharmCharacterResponse;
 import com.meisterbear.domain.charm.dto.response.CharmDetailResponse;
 import com.meisterbear.domain.charm.dto.response.CharmListResponse;
 import com.meisterbear.domain.charm.dto.response.CharmRecommendationResponse;
@@ -18,15 +17,11 @@ import com.meisterbear.domain.charm.entity.CharmReceiptStatus;
 import com.meisterbear.domain.charm.exception.CharmErrorCode;
 import com.meisterbear.domain.charm.repository.CharmReceiptRepository;
 import com.meisterbear.domain.charm.repository.CharmRepository;
-import com.meisterbear.domain.character.entity.Character;
 import com.meisterbear.domain.character.entity.CollectionStatus;
-import com.meisterbear.domain.character.exception.CharacterErrorCode;
-import com.meisterbear.domain.character.repository.CharacterRepository;
 import com.meisterbear.domain.character.repository.CollectionRepository;
 import com.meisterbear.domain.story.service.StoryService;
 import com.meisterbear.global.exception.CustomException;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +46,6 @@ public class CharmService {
 
     private final CharmReceiptRepository charmReceiptRepository;
     private final CharmRepository charmRepository;
-    private final CharacterRepository characterRepository;
     private final CollectionRepository collectionRepository;
     private final StoryService storyService;
 
@@ -126,25 +120,21 @@ public class CharmService {
                 .build();
     }
 
-    // 구매(수령) 가능한 참 목록 - 참마다 연결된 캐릭터×시즌 스토리를 이 유저가 전부 완주했는지로 판단.
-    // 이미 수령 완료(COMPLETED)한 참은 제외하고, 완주한 참만 컬렉션명 기준으로 그룹핑해서 반환
+    // 구매(수령) 가능한 참 목록 - DB에 있는 유일한 시즌을 이 유저가 완주했는지로 판단(캐릭터/시즌 구분 없이 전체 참 대상).
+    // 완주하지 못했으면 빈 목록, 완주했으면 이미 수령 완료(COMPLETED)한 참을 제외한 나머지를 컬렉션명 기준으로 그룹핑해서 반환.
     public PurchasableCharmListResponse findPurchasableCharms(Long userId) {
+        if (!storyService.isCurrentSeasonCompleted(userId)) {
+            log.info("[CharmService] 구매 가능한 참 목록 조회 완료(시즌 미완주) - userId={}", userId);
+            return PurchasableCharmListResponse.empty();
+        }
+
         Set<Long> ownedCharmIds = charmReceiptRepository.findByUserIdAndStatus(userId, CharmReceiptStatus.COMPLETED)
                 .stream()
                 .map(CharmReceipt::getCharmId)
                 .collect(Collectors.toSet());
 
-        List<Charm> candidates = charmRepository.findAll().stream()
-                .filter(Charm::isSeasonLimited)
+        List<Charm> charms = charmRepository.findAll().stream()
                 .filter(charm -> !ownedCharmIds.contains(charm.getId()))
-                .toList();
-
-        // (characterId, season) 조합별로 완주 여부를 한 번만 조회해서 참마다 중복 쿼리가 나가지 않게 캐싱
-        Map<String, Boolean> seasonCompletedCache = new HashMap<>();
-        List<Charm> charms = candidates.stream()
-                .filter(charm -> seasonCompletedCache.computeIfAbsent(
-                        charm.getCharacterId() + ":" + charm.getSeason(),
-                        key -> storyService.isSeasonCompleted(userId, charm.getCharacterId(), charm.getSeason())))
                 .toList();
         if (charms.isEmpty()) {
             log.info("[CharmService] 구매 가능한 참 목록 조회 완료(구매 가능한 참 없음) - userId={}", userId);
@@ -179,14 +169,13 @@ public class CharmService {
                 .build();
     }
 
-    // 참 상세 - isSeasonLimited에 따라 구매 가능 여부(시즌 한정) 또는 캐릭터 정보(일반)를 채워서 반환
+    // 참 상세 - 참 정보만 반환. 시즌 한정 참의 구매 가능 여부는 프론트가 스토리 상세 조회(isSeasonCompleted)로 판단
     public CharmDetailResponse findCharmDetail(Long userId, Long charmId) {
         Charm charm = charmRepository.findById(charmId)
                 .orElseThrow(() -> new CustomException(CharmErrorCode.CHARM_NOT_FOUND));
 
-        CharmDetailResponse response = toCharmDetailResponse(userId, charm);
-        log.info("[CharmService] 참 상세 조회 완료 - userId={}, charmId={}, isSeasonLimited={}, isPurchasable={}",
-                userId, charmId, response.isSeasonLimited(), response.getPurchasable());
+        CharmDetailResponse response = toCharmDetailResponse(charm);
+        log.info("[CharmService] 참 상세 조회 완료 - userId={}, charmId={}", userId, charmId);
         return response;
     }
 
@@ -210,7 +199,7 @@ public class CharmService {
         log.info("[CharmService] 참 추천 조회 완료 - userId={}, charmId={}, recommendationCount={}",
                 userId, charmId, recommendations.size());
         return CharmRecommendationResponse.builder()
-                .charm(toCharmDetailResponse(userId, charm))
+                .charm(toCharmDetailResponse(charm))
                 .recommendations(recommendations)
                 .build();
     }
@@ -219,8 +208,8 @@ public class CharmService {
         return Objects.requireNonNullElse(charm.getCollectionName(), UNCATEGORIZED_COLLECTION_NAME);
     }
 
-    private CharmDetailResponse toCharmDetailResponse(Long userId, Charm charm) {
-        CharmDetailResponse.CharmDetailResponseBuilder builder = CharmDetailResponse.builder()
+    private CharmDetailResponse toCharmDetailResponse(Charm charm) {
+        return CharmDetailResponse.builder()
                 .id(charm.getId())
                 .characterId(charm.getCharacterId())
                 .name(charm.getName())
@@ -229,22 +218,6 @@ public class CharmService {
                 .imgUrl(charm.getImgUrl())
                 .description(charm.getDescription())
                 .collectionName(charm.getCollectionName())
-                .seasonLimited(charm.isSeasonLimited());
-
-        if (charm.isSeasonLimited()) {
-            boolean purchasable = storyService.isSeasonCompleted(userId, charm.getCharacterId(), charm.getSeason());
-            return builder.purchasable(purchasable).build();
-        }
-
-        Character character = characterRepository.findById(charm.getCharacterId())
-                .orElseThrow(() -> new CustomException(CharacterErrorCode.CHARACTER_NOT_FOUND));
-        return builder.character(CharmCharacterResponse.builder()
-                        .id(character.getId())
-                        .charmId(charm.getId())
-                        .name(character.getName())
-                        .personality(character.getPersonality())
-                        .intro(character.getIntro())
-                        .build())
                 .build();
     }
 }

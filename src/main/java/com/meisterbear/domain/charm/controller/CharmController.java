@@ -134,9 +134,9 @@ public class CharmController {
 
     @Operation(
             summary = "구매(수령) 가능한 참 목록 조회",
-            description = "시즌 한정 참(isSeasonLimited=true) 중, 참마다 연결된 캐릭터×시즌 스토리(charm.character_id, charm.season)를 "
-                    + "이 유저가 전부 완주한 참만 반환한다. 일반 참은 이 목록 대상이 아니다. "
-                    + "이미 매장에서 수령 완료(COMPLETED)한 참은 목록에서 제외되며, 나머지는 컬렉션명 기준으로 그룹핑해서 반환한다.")
+            description = "스토리 상세 조회 응답(GET /api/stories/{storyId})의 isSeasonCompleted가 true인 경우(=이 유저가 시즌을 전부 완주한 경우), "
+                    + "캐릭터/시즌 구분 없이 전체 참을 대상으로 반환한다. 완주하지 못했다면 빈 목록을 반환한다. "
+                    + "완주했더라도 이미 매장에서 수령 완료(COMPLETED)한 참은 목록에서 제외되며, 나머지는 컬렉션명 기준으로 그룹핑해서 반환한다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "구매 가능한 참 목록 조회 성공",
                     content = @Content(mediaType = "application/json",
@@ -188,64 +188,29 @@ public class CharmController {
 
     @Operation(
             summary = "참 상세 조회",
-            description = "참 하나의 상세 정보를 조회한다. 응답의 isSeasonLimited 값으로 프론트에서 화면을 분기한다.\n\n"
-                    + "- isSeasonLimited가 true면 시즌 한정 참으로, character는 null이고 isPurchasable 값으로 구매 버튼 상태가 정해진다. "
-                    + "isPurchasable은 이 참에 연결된 캐릭터×시즌 스토리(charm.character_id, charm.season)를 이 유저가 전부 완주했는지로 판단하며, "
-                    + "false면 '스토리 진행 후 구매 가능' 버튼, true면 '구매 가능' 버튼이 뜬다.\n"
-                    + "- isSeasonLimited가 false면 일반 참으로, isPurchasable은 null이고 character 정보로 '캐릭터와 대화하기' 버튼과 "
-                    + "캐릭터 소개(personality)가 뜬다.")
+            description = "참 하나의 상세 정보를 조회한다. 구매 가능 여부는 "
+                    + "스토리 상세 조회 응답(GET /api/stories/{storyId})의 isSeasonCompleted 값으로 프론트에서 판단한다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "참 상세 조회 성공",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = BaseResponse.class),
-                            examples = {
-                                    @ExampleObject(name = "조회 성공 - 시즌 한정 참", value = """
-                                            {
-                                              "success": true,
-                                              "code": 200,
-                                              "message": "요청이 성공적으로 처리되었습니다.",
-                                              "data": {
-                                                "id": 1,
-                                                "characterId": 1,
-                                                "name": "MCM 비세토스 라이언 참",
-                                                "price": 410000,
-                                                "color": "꼬냑",
-                                                "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
-                                                "description": "MCM의 상징성을 담아낸 라이언 참은 시그니처 비세토스 패턴과 정교한 가죽 디테일을 조화롭게 담아낸 아이코닉 액세서리입니다.",
-                                                "collectionName": "MCM BASIC COLLECTION",
-                                                "isSeasonLimited": true,
-                                                "isPurchasable": false,
-                                                "character": null
-                                              }
-                                            }
-                                            """),
-                                    @ExampleObject(name = "조회 성공 - 일반 참", value = """
-                                            {
-                                              "success": true,
-                                              "code": 200,
-                                              "message": "요청이 성공적으로 처리되었습니다.",
-                                              "data": {
-                                                "id": 2,
-                                                "characterId": 3,
-                                                "name": "비세토스 라이언",
-                                                "price": null,
-                                                "color": null,
-                                                "imgUrl": "https://cdn.meisterbear.com/charm/2.png",
-                                                "description": null,
-                                                "collectionName": "MCM BASIC COLLECTION",
-                                                "isSeasonLimited": false,
-                                                "isPurchasable": null,
-                                                "character": {
-                                                  "id": 3,
-                                                  "charmId": 2,
-                                                  "name": "비세토스 라이언",
-                                                  "personality": "항상 침착하고 여유로운 태도를 유지하며, 화려하게 자신을 드러내기보다 자연스럽게 존재감을 보여줍니다.",
-                                                  "intro": "독일 뮌헨의 정신을 이어받은 MCM의 상징적인 라이언 캐릭터입니다."
-                                                }
-                                              }
-                                            }
-                                            """)
-                            })),
+                            examples = @ExampleObject(name = "조회 성공", value = """
+                                    {
+                                      "success": true,
+                                      "code": 200,
+                                      "message": "요청이 성공적으로 처리되었습니다.",
+                                      "data": {
+                                        "id": 1,
+                                        "characterId": 1,
+                                        "name": "MCM 비세토스 라이언 참",
+                                        "price": 410000,
+                                        "color": "꼬냑",
+                                        "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
+                                        "description": "MCM의 상징성을 담아낸 라이언 참은 시그니처 비세토스 패턴과 정교한 가죽 디테일을 조화롭게 담아낸 아이코닉 액세서리입니다.",
+                                        "collectionName": "MCM BASIC COLLECTION"
+                                      }
+                                    }
+                                    """))),
             @ApiResponse(responseCode = "404", description = "존재하지 않는 참",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = BaseResponse.class),
@@ -289,8 +254,7 @@ public class CharmController {
                                           "color": "꼬냑",
                                           "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
                                           "description": "MCM의 상징성을 담아낸 라이언 참은 시그니처 비세토스 패턴과 정교한 가죽 디테일을 조화롭게 담아낸 아이코닉 액세서리입니다.",
-                                          "collectionName": "MCM BASIC COLLECTION",
-                                          "isPurchasable": false
+                                          "collectionName": "MCM BASIC COLLECTION"
                                         },
                                         "recommendations": [
                                           {
