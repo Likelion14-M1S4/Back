@@ -41,7 +41,7 @@ public class CharacterController {
                                       "success": true,
                                       "code": 200,
                                       "message": "캐릭터가 컬렉션에 추가되었습니다.",
-                                      "data": { "id": 1, "collected": true }
+                                      "data": { "id": 1, "charmId": 1, "collected": true }
                                     }
                                     """))),
             @ApiResponse(responseCode = "404", description = "캐릭터 없음",

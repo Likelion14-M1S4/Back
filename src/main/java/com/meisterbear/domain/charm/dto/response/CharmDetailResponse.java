@@ -14,6 +14,10 @@ public class CharmDetailResponse {
     @Schema(description = "charm.id", example = "1")
     private Long id;
 
+    @Schema(description = "charm.character_id - 이 참에 대응하는 캐릭터 id. 채팅 진입(GET /api/chat/{characterId}/entry)에 사용",
+            example = "1")
+    private Long characterId;
+
     @Schema(description = "charm.name", example = "MCM 비세토스 라이언 참")
     private String name;
 

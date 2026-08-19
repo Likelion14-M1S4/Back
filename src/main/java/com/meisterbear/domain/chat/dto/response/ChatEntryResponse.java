@@ -13,6 +13,9 @@ public class ChatEntryResponse {
     @Schema(description = "character.id (이후 /messages, /inspector 호출 시 그대로 실어 보냄)", example = "1")
     private Long characterId;
 
+    @Schema(description = "이 캐릭터에 대응하는 charm.id (매칭되는 참이 없으면 null)", example = "1")
+    private Long charmId;
+
     @Schema(description = "character.name", example = "비세토스 라이언")
     private String characterName;
 

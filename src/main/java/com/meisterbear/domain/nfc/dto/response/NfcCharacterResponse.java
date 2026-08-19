@@ -12,6 +12,9 @@ public class NfcCharacterResponse {
     @Schema(description = "캐릭터 id (컬렉션 추가 API에 이 값을 사용)", example = "1")
     private Long id;
 
+    @Schema(description = "이 캐릭터에 대응하는 charm.id (매칭되는 참이 없으면 null)", example = "1")
+    private Long charmId;
+
     @Schema(description = "캐릭터 이름", example = "비세토스 라이언")
     private String name;
 

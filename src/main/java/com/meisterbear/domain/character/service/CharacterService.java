@@ -53,27 +53,29 @@ public class CharacterService {
             collections.forEach(this::promoteToOwned);
         }
 
-        syncCharmDisplayInfo(character);
+        Charm charm = syncCharmDisplayInfo(character);
 
         log.info("[CharacterService] 캐릭터 수집 완료 - userId={}, characterId={}", userId, characterId);
         return CollectCharacterResponse.builder()
                 .id(characterId)
+                .charmId(charm != null ? charm.getId() : null)
                 .collected(true)
                 .build();
     }
 
     // 캐릭터=참 1:1 전제. 수집 시점에 매칭되는 참이 있으면 표시 정보(이름/이미지)를 캐릭터 값으로 맞추고,
-    // 없으면 캐릭터 기준으로 새로 만들어 1:1 연결을 보장한다.
-    private void syncCharmDisplayInfo(Character character) {
+    // 없으면 캐릭터 기준으로 새로 만들어 1:1 연결을 보장한다. 응답에 charmId를 실어줘야 해서 참 자체를 반환한다.
+    private Charm syncCharmDisplayInfo(Character character) {
         Charm charm = charmRepository.findFirstByCharacterIdOrderByIdAsc(character.getId())
                 .orElseGet(() -> createCharmFor(character));
         if (charm == null) {
-            return;
+            return null;
         }
         if (!Objects.equals(charm.getName(), character.getName())
                 || !Objects.equals(charm.getImgUrl(), character.getImgUrl())) {
             charm.syncDisplayInfo(character.getName(), character.getImgUrl());
         }
+        return charm;
     }
 
     // 매칭되는 참이 아직 없을 때 캐릭터 기준으로 새로 만든다.
