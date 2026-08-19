@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/characters")
 public class CharacterController {
 
+
     private final CharacterService characterService;
 
     @Operation(
