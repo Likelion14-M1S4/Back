@@ -33,8 +33,8 @@ public class Collection {
     @Column(name = "character_id", nullable = false)
     private Long characterId;
 
-    // 물리적 제품 1개는 유저 1명만 등록 가능
-    @Column(name = "product_id", nullable = false, unique = true)
+    // 물리적 제품 1개를 여러 유저가 태그해도 각자 컬렉션에 등록된다 (선점 개념 없음)
+    @Column(name = "product_id", nullable = false)
     private Long productId;
 
     @CreationTimestamp
