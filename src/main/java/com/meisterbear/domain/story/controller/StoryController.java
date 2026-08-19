@@ -31,10 +31,10 @@ public class StoryController {
 
     @Operation(
             summary = "스토리 챕터 목록 조회",
-            description = "유저가 가장 최근 등록한 제품의 캐릭터에 연결된 챕터 목록을 unlock_order 순으로 반환한다 "
-                    + "(시즌은 하나만 운영되므로 별도 시즌 판별 없이 그 캐릭터의 스토리를 그대로 반환). "
+            description = "챕터 목록을 unlock_order 순으로 반환한다. 시즌은 하나만 운영되므로 제품 등록 여부·어떤 캐릭터를 "
+                    + "태그했는지와 무관하게 모든 유저에게 동일한 스토리를 노출한다. "
                     + "챕터별 해금 여부(isLocked)는 직전 챕터를 이 유저가 완주했는지로 판단한다(1번 챕터는 항상 해금). "
-                    + "등록된 제품이 없거나 그 캐릭터에 스토리가 없으면 season은 null, stories는 빈 배열로 응답한다.")
+                    + "DB에 스토리가 없으면 season은 null, stories는 빈 배열로 응답한다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "스토리 목록 조회 성공",
                     content = @Content(mediaType = "application/json",

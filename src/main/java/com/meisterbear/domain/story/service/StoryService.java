@@ -2,8 +2,6 @@ package com.meisterbear.domain.story.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.meisterbear.domain.character.entity.Collection;
-import com.meisterbear.domain.character.repository.CollectionRepository;
 import com.meisterbear.domain.charm.entity.Charm;
 import com.meisterbear.domain.charm.repository.CharmRepository;
 import com.meisterbear.domain.story.dto.response.RewardCharmResponse;
@@ -36,28 +34,21 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class StoryService {
 
-    private final CollectionRepository collectionRepository;
     private final CharmRepository charmRepository;
     private final StoryRepository storyRepository;
     private final UserStoryProgressRepository userStoryProgressRepository;
     private final ObjectMapper objectMapper;
 
     public StoryListResponse findStories(Long userId) {
-        Optional<Collection> latestCollection = collectionRepository.findTopByUserIdOrderByAddedAtDesc(userId);
-        if (latestCollection.isEmpty()) {
-            log.info("[StoryService] 스토리 목록 조회 완료(등록 제품 없음) - userId={}", userId);
-            return StoryListResponse.empty();
-        }
-
-        Long characterId = latestCollection.get().getCharacterId();
-        // 시즌은 캐릭터당 하나만 운영되는 게 전제지만, 데이터가 잘못 섞여 들어갈 가능성에 대비해
-        // 이 캐릭터의 가장 오래된(첫) 시즌 하나로 명시적으로 스코프를 고정한다.
-        List<Story> allCharacterStories = storyRepository.findByCharacterIdOrderByIdAsc(characterId);
-        if (allCharacterStories.isEmpty()) {
+        // 스토리는 유저가 제품을 등록했는지, 어떤 캐릭터를 태그했는지와 무관하게 모두에게 동일하게 노출한다
+        // (시즌 하나만 운영). 보여줄 시즌은 DB에 있는 유일한 시즌 스토리로 고정한다.
+        Optional<Story> anyStory = storyRepository.findFirstByOrderByIdAsc();
+        if (anyStory.isEmpty()) {
             log.info("[StoryService] 스토리 목록 조회 완료(스토리 없음) - userId={}", userId);
             return StoryListResponse.empty();
         }
-        String season = allCharacterStories.get(0).getSeason();
+        Long characterId = anyStory.get().getCharacterId();
+        String season = anyStory.get().getSeason();
         List<Story> stories = storyRepository.findByCharacterIdAndSeason(characterId, season);
 
         List<Long> storyIds = stories.stream().map(Story::getId).toList();
