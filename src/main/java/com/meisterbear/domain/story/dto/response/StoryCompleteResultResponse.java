@@ -27,7 +27,9 @@ public class StoryCompleteResultResponse {
             example = "false")
     private boolean seasonCompleted;
 
-    @Schema(description = "이 시즌 완료로 받는 참 목록 (isSeasonCompleted=true일 때만 채워짐)")
+    @Schema(description = "이 시즌 완료로 받는 참 목록 (isSeasonCompleted=true일 때만 채워짐)",
+            example = "[{\"id\":1,\"name\":\"라이언 참\",\"imgUrl\":\"https://cdn.meisterbear.com/charm/1.png\","
+                    + "\"collectionName\":\"라이언 컬렉션\"}]")
     @Builder.Default
     private List<RewardCharmResponse> charms = List.of();
 }

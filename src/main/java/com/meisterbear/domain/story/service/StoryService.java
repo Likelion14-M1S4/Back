@@ -50,12 +50,15 @@ public class StoryService {
         }
 
         Long characterId = latestCollection.get().getCharacterId();
-        // 시즌은 항상 하나만 운영되므로 별도 시즌 판별 없이 해당 캐릭터의 스토리를 그대로 반환한다.
-        List<Story> stories = storyRepository.findByCharacterIdOrderByIdAsc(characterId);
-        if (stories.isEmpty()) {
+        // 시즌은 캐릭터당 하나만 운영되는 게 전제지만, 데이터가 잘못 섞여 들어갈 가능성에 대비해
+        // 이 캐릭터의 가장 오래된(첫) 시즌 하나로 명시적으로 스코프를 고정한다.
+        List<Story> allCharacterStories = storyRepository.findByCharacterIdOrderByIdAsc(characterId);
+        if (allCharacterStories.isEmpty()) {
             log.info("[StoryService] 스토리 목록 조회 완료(스토리 없음) - userId={}", userId);
             return StoryListResponse.empty();
         }
+        String season = allCharacterStories.get(0).getSeason();
+        List<Story> stories = storyRepository.findByCharacterIdAndSeason(characterId, season);
 
         List<Long> storyIds = stories.stream().map(Story::getId).toList();
         Map<Long, UserStoryProgress> progressByStoryId = userStoryProgressRepository
@@ -86,9 +89,10 @@ public class StoryService {
                     return progress != null && progress.isDone();
                 });
 
-        log.info("[StoryService] 스토리 목록 조회 완료 - userId={}, count={}", userId, storyResponses.size());
+        log.info("[StoryService] 스토리 목록 조회 완료 - userId={}, season={}, count={}",
+                userId, season, storyResponses.size());
         return StoryListResponse.builder()
-                .season(stories.get(0).getSeason())
+                .season(season)
                 .stories(storyResponses)
                 .allCompleted(allCompleted)
                 .build();
