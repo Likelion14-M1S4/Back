@@ -47,13 +47,15 @@ public class CharmController {
                                         "charms": [
                                           {
                                             "id": 1,
+                                            "characterId": 1,
                                             "name": "비세토스 라이언",
                                             "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
                                             "collectionName": "MCM BASIC COLLECTION"
                                           },
                                           {
                                             "id": 2,
-                                            "name": "비세토스 라이언",
+                                            "characterId": 3,
+                                            "name": "루카 라이언",
                                             "imgUrl": "https://cdn.meisterbear.com/charm/2.png",
                                             "collectionName": "MCM BASIC COLLECTION"
                                           }
@@ -99,6 +101,7 @@ public class CharmController {
                                             "charms": [
                                               {
                                                 "id": 1,
+                                                "characterId": 1,
                                                 "name": "비세토스 라이언",
                                                 "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
                                                 "collectionName": "MCM BASIC COLLECTION"
@@ -150,6 +153,7 @@ public class CharmController {
                                             "charms": [
                                               {
                                                 "id": 1,
+                                                "characterId": 1,
                                                 "name": "비세토스 라이언",
                                                 "price": 410000,
                                                 "color": "꼬냑",
@@ -202,6 +206,7 @@ public class CharmController {
                                               "message": "요청이 성공적으로 처리되었습니다.",
                                               "data": {
                                                 "id": 1,
+                                                "characterId": 1,
                                                 "name": "MCM 비세토스 라이언 참",
                                                 "price": 410000,
                                                 "color": "꼬냑",
@@ -221,6 +226,7 @@ public class CharmController {
                                               "message": "요청이 성공적으로 처리되었습니다.",
                                               "data": {
                                                 "id": 2,
+                                                "characterId": 3,
                                                 "name": "비세토스 라이언",
                                                 "price": null,
                                                 "color": null,
@@ -276,6 +282,7 @@ public class CharmController {
                                       "data": {
                                         "charm": {
                                           "id": 1,
+                                          "characterId": 1,
                                           "name": "비세토스 라이언",
                                           "price": 410000,
                                           "color": "꼬냑",
@@ -287,6 +294,7 @@ public class CharmController {
                                         "recommendations": [
                                           {
                                             "id": 2,
+                                            "characterId": 3,
                                             "name": "비세토스 라이언",
                                             "imgUrl": "https://cdn.meisterbear.com/charm/2.png",
                                             "collectionName": "MCM BASIC COLLECTION"

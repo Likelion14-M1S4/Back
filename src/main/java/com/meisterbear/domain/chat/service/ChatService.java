@@ -18,11 +18,14 @@ import com.meisterbear.domain.user.repository.UserRepository;
 import com.meisterbear.global.exception.CustomException;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 // 클래스 레벨 @Transactional을 두지 않는다 - sendMessage/inspect는 OpenAI 호출(수 초까지 걸릴 수 있음)을 포함하는데,
 // 트랜잭션으로 감싸면 그 시간 내내 DB 커넥션을 붙들고 있게 된다. 캐릭터 조회 같은 개별 DB 조회는
@@ -37,6 +40,10 @@ public class ChatService {
             StarterChoiceResponse.builder().id(1L).label("제품이 오염됐어").tagName("care").build(),
             StarterChoiceResponse.builder().id(2L).label("너에 대해 알고싶어").tagName("character").build()
     );
+
+    // 스트리밍은 SseEmitter를 컨트롤러에 즉시 반환해야 해서, OpenAI 호출은 별도 스레드에서 돌린다.
+    // 가상 스레드라 블로킹 IO(스트리밍 읽기)를 오래 잡고 있어도 플랫폼 스레드를 점유하지 않는다.
+    private static final ExecutorService STREAM_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private final CharacterRepository characterRepository;
     private final UserRepository userRepository;
@@ -83,6 +90,39 @@ public class ChatService {
                 .build();
     }
 
+    // sendMessage와 캐릭터 조회·프롬프트·히스토리 변환·폴백 로직은 동일하고, 응답만 한 번에 안 주고
+    // 토큰이 만들어지는 대로 SSE로 흘려보낸다. 캐릭터가 없으면(404) 이 메서드 안에서 즉시 던져서
+    // 컨트롤러가 SseEmitter를 만들기 전에 평소처럼 GlobalExceptionHandler가 처리하게 한다.
+    public void sendMessageStream(Long userId, SendChatMessageRequest request, SseEmitter emitter) {
+        Character character = resolveCharacter(request.getCharacterId());
+        String systemPrompt = ChatPromptTemplate.systemPrompt(character);
+        List<ChatTurn> history = toChatTurns(request.getHistory());
+
+        STREAM_EXECUTOR.execute(() -> {
+            try {
+                openAiClient.chatStream(systemPrompt, history, request.getMessage(),
+                        token -> sendChunk(emitter, token));
+                emitter.complete();
+                log.info("[ChatService] 스트리밍 대화 처리 완료 - userId={}, characterId={}",
+                        userId, request.getCharacterId());
+            } catch (Exception e) {
+                log.warn("[ChatService] 스트리밍 AI 응답 생성 실패 - userId={}, characterId={}, error={}",
+                        userId, request.getCharacterId(), e.getMessage());
+                sendChunk(emitter, ChatPromptTemplate.fallbackReply());
+                emitter.complete();
+            }
+        });
+    }
+
+    // 이미 완료/타임아웃된 emitter에 보내면 예외가 나므로, 개별 청크 전송 실패로 스트림 전체가 끊기지 않게 여기서 흡수한다
+    private void sendChunk(SseEmitter emitter, String token) {
+        try {
+            emitter.send(SseEmitter.event().data(token));
+        } catch (IOException e) {
+            log.warn("[ChatService] SSE 청크 전송 실패 - error={}", e.getMessage());
+        }
+    }
+
     // 케어 문의 - 사진을 분석해서 관찰 내용/권장 케어를 대화체로 돌려준다. 텍스트는 안 받고 사진만 받는다
     // (직전까지 나눈 대화 맥락은 history로 이어받는다 - 대화 기록 미저장 정책이라 프론트가 매번 실어 보내야 함).
     // history는 multipart 파트라 JSON 문자열로 받는다 - @RequestPart로 객체를 바로 받으면 Swagger 등 일부
@@ -108,6 +148,41 @@ public class ChatService {
                 .characterId(character.getId())
                 .reply(reply)
                 .build();
+    }
+
+    // inspect의 스트리밍 버전. MultipartFile의 바이트는 비동기 스레드로 넘어가기 전에(요청이 끝나기 전에)
+    // 미리 읽어둔다 - 스레드 넘어간 뒤에 읽으면 요청 종료와 함께 임시 파일이 정리돼 있을 수 있어서다.
+    public void inspectStream(Long userId, Long characterId, String historyJson, MultipartFile image,
+                               SseEmitter emitter) {
+        Character character = resolveCharacter(characterId);
+        String systemPrompt = ChatPromptTemplate.inspectorSystemPrompt(character);
+        List<ChatTurn> history = toChatTurns(parseHistory(historyJson));
+        String contentType = image.getContentType();
+
+        byte[] imageBytes;
+        try {
+            imageBytes = image.getBytes();
+        } catch (IOException e) {
+            log.warn("[ChatService] 스트리밍 케어 진단 이미지 읽기 실패 - userId={}, characterId={}, error={}",
+                    userId, characterId, e.getMessage());
+            sendChunk(emitter, careGuideFallback(character));
+            emitter.complete();
+            return;
+        }
+
+        STREAM_EXECUTOR.execute(() -> {
+            try {
+                openAiClient.chatWithImageStream(systemPrompt, history, imageBytes, contentType,
+                        token -> sendChunk(emitter, token));
+                emitter.complete();
+                log.info("[ChatService] 스트리밍 케어 진단 처리 완료 - userId={}, characterId={}", userId, characterId);
+            } catch (Exception e) {
+                log.warn("[ChatService] 스트리밍 케어 진단 실패 - userId={}, characterId={}, error={}",
+                        userId, characterId, e.getMessage());
+                sendChunk(emitter, careGuideFallback(character));
+                emitter.complete();
+            }
+        });
     }
 
     // 파싱 실패해도 예외로 전체 요청을 막지 않고, 그냥 맥락 없이(빈 히스토리) 진행한다

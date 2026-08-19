@@ -31,6 +31,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Value("${auth.optional-user-id:}")
     private String optionalUserIdRaw;
 
+    // OncePerRequestFilter는 기본적으로 ASYNC 디스패치를 건너뛴다. SSE(SseEmitter) 응답은 완료 시점에
+    // 컨테이너가 ASYNC 디스패치로 필터 체인을 다시 태우는데, 이 필터가 그때 스킵되면 SecurityContext가
+    // 비어있는 채로 Spring Security의 AuthorizationFilter만 다시 돌아서 AuthorizationDeniedException이 난다
+    // (응답이 이미 커밋된 뒤라 에러 페이지도 못 그리고 로그만 지저분하게 남음). false로 재정의해서 ASYNC 디스패치 때도
+    // 이 필터가 같은 요청의 Authorization 헤더로 인증을 다시 채워주게 한다.
+    @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,

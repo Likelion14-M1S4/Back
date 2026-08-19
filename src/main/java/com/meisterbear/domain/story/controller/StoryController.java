@@ -178,11 +178,11 @@ public class StoryController {
                                         "readAt": "2026-08-13T13:20:00",
                                         "isSeasonCompleted": true,
                                         "charms": [
-                                          { "id": 1, "name": "라이언 참", "imgUrl": "https://cdn.meisterbear.com/charm/1.png", "collectionName": "라이언 컬렉션" },
-                                          { "id": 2, "name": "라이언 참2", "imgUrl": "https://cdn.meisterbear.com/charm/2.png", "collectionName": "라이언 컬렉션" },
-                                          { "id": 3, "name": "라이언 참3", "imgUrl": "https://cdn.meisterbear.com/charm/3.png", "collectionName": "라이언 컬렉션" },
-                                          { "id": 4, "name": "라이언 참4", "imgUrl": "https://cdn.meisterbear.com/charm/4.png", "collectionName": "라이언 컬렉션" },
-                                          { "id": 5, "name": "라이언 참5", "imgUrl": "https://cdn.meisterbear.com/charm/5.png", "collectionName": "라이언 컬렉션" }
+                                          { "id": 1, "characterId": 1, "name": "라이언 참", "imgUrl": "https://cdn.meisterbear.com/charm/1.png", "collectionName": "라이언 컬렉션" },
+                                          { "id": 2, "characterId": 3, "name": "루카 참", "imgUrl": "https://cdn.meisterbear.com/charm/2.png", "collectionName": "라이언 컬렉션" },
+                                          { "id": 3, "characterId": 4, "name": "엘리오 참", "imgUrl": "https://cdn.meisterbear.com/charm/3.png", "collectionName": "라이언 컬렉션" },
+                                          { "id": 4, "characterId": 5, "name": "놀라 참", "imgUrl": "https://cdn.meisterbear.com/charm/4.png", "collectionName": "라이언 컬렉션" },
+                                          { "id": 5, "characterId": 6, "name": "테오 참", "imgUrl": "https://cdn.meisterbear.com/charm/5.png", "collectionName": "라이언 컬렉션" }
                                         ]
                                       }
                                     }

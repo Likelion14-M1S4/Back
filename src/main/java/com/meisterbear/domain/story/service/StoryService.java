@@ -146,6 +146,7 @@ public class StoryService {
         return charms.stream()
                 .map(charm -> RewardCharmResponse.builder()
                         .id(charm.getId())
+                        .characterId(charm.getCharacterId())
                         .name(charm.getName())
                         .imgUrl(charm.getImgUrl())
                         .collectionName(charm.getCollectionName())
