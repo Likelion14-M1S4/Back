@@ -3,6 +3,7 @@ package com.meisterbear.domain.story.dto.response;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -26,11 +27,7 @@ public class StoryCompleteResultResponse {
             example = "false")
     private boolean seasonCompleted;
 
-    @Schema(description = "character.name (시즌 완료 화면 문구에 사용, isSeasonCompleted=true일 때만 의미 있음)",
-            example = "비세토스 라이언")
-    private String characterName;
-
-    @Schema(description = "character.img_url (시즌 완료 화면에 사용, isSeasonCompleted=true일 때만 의미 있음)",
-            example = "https://cdn.meisterbear.com/character/1.png")
-    private String characterImgUrl;
+    @Schema(description = "이 시즌 완료로 받는 참 목록 (isSeasonCompleted=true일 때만 채워짐)")
+    @Builder.Default
+    private List<RewardCharmResponse> charms = List.of();
 }
