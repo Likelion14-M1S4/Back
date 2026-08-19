@@ -149,11 +149,13 @@ public class OpenAiClient {
 
         HttpResponse<java.util.stream.Stream<String>> response =
                 streamingHttpClient.send(request, HttpResponse.BodyHandlers.ofLines());
-        if (response.statusCode() >= 400) {
-            throw new IllegalStateException("OpenAI 스트리밍 요청 실패 - status=" + response.statusCode());
-        }
 
+        // response.body()로 스트림을 먼저 확보해 try-with-resources에 걸어야, 4xx/5xx로 던지고 나가는 경우에도
+        // 커넥션이 닫힌다. 상태코드 체크를 body() 호출보다 먼저 하면 이 스트림을 아예 안 열게 되어 리소스가 샌다.
         try (java.util.stream.Stream<String> lines = response.body()) {
+            if (response.statusCode() >= 400) {
+                throw new IllegalStateException("OpenAI 스트리밍 요청 실패 - status=" + response.statusCode());
+            }
             lines.forEach(line -> emitToken(line, onToken));
         }
     }
