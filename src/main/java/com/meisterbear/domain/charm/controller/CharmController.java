@@ -47,13 +47,15 @@ public class CharmController {
                                         "charms": [
                                           {
                                             "id": 1,
+                                            "characterId": 1,
                                             "name": "비세토스 라이언",
                                             "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
                                             "collectionName": "MCM BASIC COLLECTION"
                                           },
                                           {
                                             "id": 2,
-                                            "name": "비세토스 라이언",
+                                            "characterId": 3,
+                                            "name": "루카 라이언",
                                             "imgUrl": "https://cdn.meisterbear.com/charm/2.png",
                                             "collectionName": "MCM BASIC COLLECTION"
                                           }
@@ -99,6 +101,7 @@ public class CharmController {
                                             "charms": [
                                               {
                                                 "id": 1,
+                                                "characterId": 1,
                                                 "name": "비세토스 라이언",
                                                 "imgUrl": "https://cdn.meisterbear.com/charm/1.png",
                                                 "collectionName": "MCM BASIC COLLECTION"
@@ -150,6 +153,7 @@ public class CharmController {
                                             "charms": [
                                               {
                                                 "id": 1,
+                                                "characterId": 1,
                                                 "name": "비세토스 라이언",
                                                 "price": 410000,
                                                 "color": "꼬냑",
@@ -202,6 +206,7 @@ public class CharmController {
                                               "message": "요청이 성공적으로 처리되었습니다.",
                                               "data": {
                                                 "id": 1,
+                                                "characterId": 1,
                                                 "name": "MCM 비세토스 라이언 참",
                                                 "price": 410000,
                                                 "color": "꼬냑",
@@ -221,6 +226,7 @@ public class CharmController {
                                               "message": "요청이 성공적으로 처리되었습니다.",
                                               "data": {
                                                 "id": 2,
+                                                "characterId": 3,
                                                 "name": "비세토스 라이언",
                                                 "price": null,
                                                 "color": null,
@@ -231,6 +237,7 @@ public class CharmController {
                                                 "isPurchasable": null,
                                                 "character": {
                                                   "id": 3,
+                                                  "charmId": 2,
                                                   "name": "비세토스 라이언",
                                                   "personality": "항상 침착하고 여유로운 태도를 유지하며, 화려하게 자신을 드러내기보다 자연스럽게 존재감을 보여줍니다.",
                                                   "intro": "독일 뮌헨의 정신을 이어받은 MCM의 상징적인 라이언 캐릭터입니다."
@@ -276,6 +283,7 @@ public class CharmController {
                                       "data": {
                                         "charm": {
                                           "id": 1,
+                                          "characterId": 1,
                                           "name": "비세토스 라이언",
                                           "price": 410000,
                                           "color": "꼬냑",
@@ -287,6 +295,7 @@ public class CharmController {
                                         "recommendations": [
                                           {
                                             "id": 2,
+                                            "characterId": 3,
                                             "name": "비세토스 라이언",
                                             "imgUrl": "https://cdn.meisterbear.com/charm/2.png",
                                             "collectionName": "MCM BASIC COLLECTION"

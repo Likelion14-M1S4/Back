@@ -12,6 +12,10 @@ public class RecommendedCharmResponse {
     @Schema(description = "charm.id", example = "2")
     private Long id;
 
+    @Schema(description = "charm.character_id - 이 참에 대응하는 캐릭터 id. 채팅 진입(GET /api/chat/{characterId}/entry)에 사용",
+            example = "3")
+    private Long characterId;
+
     @Schema(description = "charm.name", example = "비세토스 라이언")
     private String name;
 

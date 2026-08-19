@@ -49,6 +49,7 @@ public class NfcController {
                                         "productName": "Stark 사이드 스터드 비세토스 백팩",
                                         "character": {
                                           "id": 1,
+                                          "charmId": 1,
                                           "name": "비세토스 라이언",
                                           "collectionName": "MCM BASIC COLLECTION",
                                           "description": "장인 정신이 깃든 비세토스 라이언입니다.",
