@@ -157,8 +157,12 @@ public class NfcService {
             return null;
         }
         String collectionName = resolveCollectionName(character.getId(), taggedProduct.getSeason());
+        Long charmId = charmRepository.findFirstByCharacterIdOrderByIdAsc(character.getId())
+                .map(Charm::getId)
+                .orElse(null);
         return NfcCharacterResponse.builder()
                 .id(character.getId())
+                .charmId(charmId)
                 .name(character.getName())
                 .collectionName(collectionName)
                 .description(character.getIntro())

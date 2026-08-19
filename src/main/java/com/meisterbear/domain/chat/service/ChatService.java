@@ -11,6 +11,8 @@ import com.meisterbear.domain.chat.dto.response.StarterChoiceResponse;
 import com.meisterbear.domain.chat.exception.ChatErrorCode;
 import com.meisterbear.domain.character.entity.Character;
 import com.meisterbear.domain.character.repository.CharacterRepository;
+import com.meisterbear.domain.charm.entity.Charm;
+import com.meisterbear.domain.charm.repository.CharmRepository;
 import com.meisterbear.domain.product.repository.ProductRepository;
 import com.meisterbear.domain.user.entity.User;
 import com.meisterbear.domain.user.exception.UserErrorCode;
@@ -48,6 +50,7 @@ public class ChatService {
     private final CharacterRepository characterRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final CharmRepository charmRepository;
     private final OpenAiClient openAiClient;
     private final ObjectMapper objectMapper;
 
@@ -61,6 +64,7 @@ public class ChatService {
         log.info("[ChatService] 채팅 진입 화면 조회 완료 - userId={}, characterId={}", userId, characterId);
         return ChatEntryResponse.builder()
                 .characterId(character.getId())
+                .charmId(resolveCharmId(character.getId()))
                 .characterName(character.getName())
                 .characterImgUrl(character.getImgUrl())
                 .greeting("안녕하세요, " + user.getNickname() + "님. 어떤 얘기를 나눠볼까요?")
@@ -86,6 +90,7 @@ public class ChatService {
         log.info("[ChatService] 대화 처리 완료 - userId={}, characterId={}", userId, request.getCharacterId());
         return ChatMessageResultResponse.builder()
                 .characterId(character.getId())
+                .charmId(resolveCharmId(character.getId()))
                 .reply(reply)
                 .build();
     }
@@ -146,6 +151,7 @@ public class ChatService {
         log.info("[ChatService] 케어 진단 처리 완료 - userId={}, characterId={}", userId, characterId);
         return ChatMessageResultResponse.builder()
                 .characterId(character.getId())
+                .charmId(resolveCharmId(character.getId()))
                 .reply(reply)
                 .build();
     }
@@ -208,6 +214,13 @@ public class ChatService {
     private Character resolveCharacter(Long characterId) {
         return characterRepository.findById(characterId)
                 .orElseThrow(() -> new CustomException(ChatErrorCode.CHARACTER_NOT_FOUND));
+    }
+
+    // 캐릭터=참 1:1 전제. 매칭되는 참이 아직 없으면(카탈로그 미등록) null을 그대로 응답에 내려준다.
+    private Long resolveCharmId(Long characterId) {
+        return charmRepository.findFirstByCharacterIdOrderByIdAsc(characterId)
+                .map(Charm::getId)
+                .orElse(null);
     }
 
     // history의 role(USER/CHARACTER)을 OpenAI 표기(user/assistant)로 변환. 알 수 없는 값은 안전하게 user로 취급

@@ -12,6 +12,9 @@ public class CharmCharacterResponse {
     @Schema(description = "character.id", example = "3")
     private Long id;
 
+    @Schema(description = "이 캐릭터에 대응하는 charm.id (지금 조회 중인 참 자신의 id와 동일)", example = "2")
+    private Long charmId;
+
     @Schema(description = "character.name", example = "비세토스 라이언")
     private String name;
 

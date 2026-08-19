@@ -12,6 +12,9 @@ public class ChatMessageResultResponse {
     @Schema(description = "응답한 character.id", example = "1")
     private Long characterId;
 
+    @Schema(description = "이 캐릭터에 대응하는 charm.id (매칭되는 참이 없으면 null)", example = "1")
+    private Long charmId;
+
     @Schema(description = "캐릭터 페르소나 톤으로 생성된 답변",
             example = "이번 시즌 비세토스 라이언 백팩은 최상급 새들 레더로 만들어졌어요. 궁금한 게 더 있나요?")
     private String reply;

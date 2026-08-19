@@ -55,6 +55,7 @@ public class ChatController {
                                       "message": "요청이 성공적으로 처리되었습니다.",
                                       "data": {
                                         "characterId": 1,
+                                        "charmId": 1,
                                         "characterName": "비세토스 라이언",
                                         "characterImgUrl": "https://cdn.meisterbear.com/character/1.png",
                                         "greeting": "안녕하세요, 박세은님. 어떤 얘기를 나눠볼까요?",
@@ -103,6 +104,7 @@ public class ChatController {
                                       "message": "요청이 성공적으로 처리되었습니다.",
                                       "data": {
                                         "characterId": 1,
+                                        "charmId": 1,
                                         "reply": "이번 시즌 비세토스 라이언 백팩은 최상급 새들 레더로 만들어졌어요. 궁금한 게 더 있나요?"
                                       }
                                     }
@@ -191,6 +193,7 @@ public class ChatController {
                                       "message": "요청이 성공적으로 처리되었습니다.",
                                       "data": {
                                         "characterId": 1,
+                                        "charmId": 1,
                                         "reply": "어떤 이유로 생긴 얼룩인가요?"
                                       }
                                     }

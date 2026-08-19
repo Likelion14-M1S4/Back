@@ -237,6 +237,7 @@ public class CharmController {
                                                 "isPurchasable": null,
                                                 "character": {
                                                   "id": 3,
+                                                  "charmId": 2,
                                                   "name": "비세토스 라이언",
                                                   "personality": "항상 침착하고 여유로운 태도를 유지하며, 화려하게 자신을 드러내기보다 자연스럽게 존재감을 보여줍니다.",
                                                   "intro": "독일 뮌헨의 정신을 이어받은 MCM의 상징적인 라이언 캐릭터입니다."

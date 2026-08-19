@@ -240,6 +240,7 @@ public class CharmService {
                 .orElseThrow(() -> new CustomException(CharacterErrorCode.CHARACTER_NOT_FOUND));
         return builder.character(CharmCharacterResponse.builder()
                         .id(character.getId())
+                        .charmId(charm.getId())
                         .name(character.getName())
                         .personality(character.getPersonality())
                         .intro(character.getIntro())
