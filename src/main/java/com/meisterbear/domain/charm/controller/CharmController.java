@@ -32,7 +32,8 @@ public class CharmController {
 
     @Operation(
             summary = "참 목록 조회",
-            description = "전체 참을 컬렉션/시즌 구분 없이 id 오름차순으로 카드 형태 목록으로 반환한다.")
+            description = "이 유저가 uid로 태그해서 수집(collect)한 캐릭터의 참만 id 오름차순으로 카드 형태 목록으로 반환한다. "
+                    + "캐릭터=참 1:1이므로, 수집한 캐릭터가 없으면 빈 목록을 반환한다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "참 목록 조회 성공",
                     content = @Content(mediaType = "application/json",
@@ -59,11 +60,23 @@ public class CharmController {
                                         ]
                                       }
                                     }
+                                    """))),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = BaseResponse.class),
+                            examples = @ExampleObject(name = "인증 실패", value = """
+                                    {
+                                      "success": false,
+                                      "code": "G006",
+                                      "message": "인증이 필요합니다.",
+                                      "data": null
+                                    }
                                     """)))
     })
     @GetMapping
-    public BaseResponse<CharmListResponse> findAllCharms() {
-        CharmListResponse response = charmService.findAllCharms();
+    public BaseResponse<CharmListResponse> findAllCharms(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getUser().getId();
+        CharmListResponse response = charmService.findAllCharms(userId);
         return BaseResponse.success(response);
     }
 

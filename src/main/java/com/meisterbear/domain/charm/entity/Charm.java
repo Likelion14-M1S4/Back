@@ -71,4 +71,11 @@ public class Charm {
         this.color = color;
         this.seasonLimited = seasonLimited;
     }
+
+    // 캐릭터=참 1:1이라 표시 정보(이름/이미지)는 캐릭터 쪽을 원본으로 삼는다.
+    // 캐릭터 수집(collect) 시점에 이 참의 표시 정보를 캐릭터 값으로 맞춰 드리프트를 방지한다.
+    public void syncDisplayInfo(String characterName, String characterImgUrl) {
+        this.name = characterName;
+        this.imgUrl = characterImgUrl;
+    }
 }

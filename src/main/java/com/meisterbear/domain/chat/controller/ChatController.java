@@ -61,27 +61,17 @@ public class ChatController {
                                       }
                                     }
                                     """))),
-            @ApiResponse(responseCode = "404", description = "존재하지 않는 캐릭터, 또는 이 유저가 아직 만나지 않은 캐릭터",
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 캐릭터",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = BaseResponse.class),
-                            examples = {
-                                    @ExampleObject(name = "캐릭터 없음", value = """
-                                            {
-                                              "success": false,
-                                              "code": "CHAT404",
-                                              "message": "해당 캐릭터를 찾을 수 없습니다.",
-                                              "data": null
-                                            }
-                                            """),
-                                    @ExampleObject(name = "아직 만나지 않은 캐릭터", value = """
-                                            {
-                                              "success": false,
-                                              "code": "CHAT404",
-                                              "message": "아직 만나지 않은 캐릭터입니다.",
-                                              "data": null
-                                            }
-                                            """)
-                            }))
+                            examples = @ExampleObject(name = "캐릭터 없음", value = """
+                                    {
+                                      "success": false,
+                                      "code": "CHAT404",
+                                      "message": "해당 캐릭터를 찾을 수 없습니다.",
+                                      "data": null
+                                    }
+                                    """)))
     })
     @GetMapping("/{characterId}/entry")
     public BaseResponse<ChatEntryResponse> findEntry(
@@ -113,7 +103,7 @@ public class ChatController {
                                       }
                                     }
                                     """))),
-            @ApiResponse(responseCode = "404", description = "존재하지 않는 캐릭터, 또는 이 유저가 아직 만나지 않은 캐릭터",
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 캐릭터",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = BaseResponse.class),
                             examples = @ExampleObject(name = "캐릭터 없음", value = """
@@ -156,7 +146,7 @@ public class ChatController {
                                       }
                                     }
                                     """))),
-            @ApiResponse(responseCode = "404", description = "존재하지 않는 캐릭터, 또는 이 유저가 아직 만나지 않은 캐릭터",
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 캐릭터",
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = BaseResponse.class),
                             examples = @ExampleObject(name = "캐릭터 없음", value = """

@@ -19,8 +19,10 @@ import com.meisterbear.domain.charm.exception.CharmErrorCode;
 import com.meisterbear.domain.charm.repository.CharmReceiptRepository;
 import com.meisterbear.domain.charm.repository.CharmRepository;
 import com.meisterbear.domain.character.entity.Character;
+import com.meisterbear.domain.character.entity.CollectionStatus;
 import com.meisterbear.domain.character.exception.CharacterErrorCode;
 import com.meisterbear.domain.character.repository.CharacterRepository;
+import com.meisterbear.domain.character.repository.CollectionRepository;
 import com.meisterbear.domain.story.service.StoryService;
 import com.meisterbear.global.exception.CustomException;
 import java.util.Comparator;
@@ -50,13 +52,24 @@ public class CharmService {
     private final CharmReceiptRepository charmReceiptRepository;
     private final CharmRepository charmRepository;
     private final CharacterRepository characterRepository;
+    private final CollectionRepository collectionRepository;
     private final StoryService storyService;
 
-    // 전체 참 목록 - id 오름차순으로 그룹핑 없이 카드 형태로 반환
-    public CharmListResponse findAllCharms() {
-        List<Charm> charms = charmRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+    // 참 목록 - uid로 태그해서 수집(collect)한 캐릭터의 참만 id 오름차순으로 카드 형태로 반환.
+    // 캐릭터=참 1:1이므로 캐릭터를 하나도 안 모았으면 빈 목록이다.
+    public CharmListResponse findAllCharms(Long userId) {
+        List<Long> ownedCharacterIds = collectionRepository.findCharacterIdsByUserIdAndStatus(
+                userId, CollectionStatus.OWNED);
+        if (ownedCharacterIds.isEmpty()) {
+            log.info("[CharmService] 참 목록 조회 완료(수집한 캐릭터 없음) - userId={}", userId);
+            return CharmListResponse.empty();
+        }
+
+        List<Charm> charms = charmRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
+                .filter(charm -> ownedCharacterIds.contains(charm.getCharacterId()))
+                .toList();
         if (charms.isEmpty()) {
-            log.info("[CharmService] 참 목록 조회 완료(참 없음) - count=0");
+            log.info("[CharmService] 참 목록 조회 완료(매칭되는 참 없음) - userId={}", userId);
             return CharmListResponse.empty();
         }
 
@@ -69,7 +82,7 @@ public class CharmService {
                         .build())
                 .toList();
 
-        log.info("[CharmService] 참 목록 조회 완료 - count={}", summaries.size());
+        log.info("[CharmService] 참 목록 조회 완료 - userId={}, count={}", userId, summaries.size());
         return CharmListResponse.builder()
                 .charms(summaries)
                 .build();
