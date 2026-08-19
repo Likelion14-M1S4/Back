@@ -16,7 +16,4 @@ public interface CharmRepository extends JpaRepository<Charm, Long> {
     // 같은 캐릭터가 시즌별로 다른 참(다른 컬렉션명)을 가질 수 있으므로,
     // 태그한 제품의 시즌과 일치하는 참을 우선 조회한다
     Optional<Charm> findFirstByCharacterIdAndSeasonOrderByIdAsc(Long characterId, String season);
-
-    // 시즌 완료 보상으로 내려줄 캐릭터×시즌의 참 전체 목록
-    List<Charm> findByCharacterIdAndSeasonOrderByIdAsc(Long characterId, String season);
 }
