@@ -144,13 +144,14 @@ public class StoryService {
                 .done(progress.isDone())
                 .readAt(progress.getReadAt())
                 .seasonCompleted(seasonCompleted)
-                .charms(seasonCompleted ? findRewardCharms(story.getCharacterId(), story.getSeason()) : List.of())
+                .charms(seasonCompleted ? findRewardCharms(story.getSeason()) : List.of())
                 .build();
     }
 
-    // 시즌 완료 시 내려줄 참 목록 - 실제 보유 처리(CharmReceipt)는 하지 않고 완료 화면에 보여줄 정보만 반환한다.
-    private List<RewardCharmResponse> findRewardCharms(Long characterId, String season) {
-        List<Charm> charms = charmRepository.findByCharacterIdAndSeasonOrderByIdAsc(characterId, season);
+    // 시즌 완료 시 내려줄 참 목록 - 캐릭터 1개당 참 1개라, 이 시즌에 속한 캐릭터들의 참을 전부 모아서 반환한다.
+    // 실제 보유 처리(CharmReceipt)는 하지 않고 완료 화면에 보여줄 정보만 반환한다.
+    private List<RewardCharmResponse> findRewardCharms(String season) {
+        List<Charm> charms = charmRepository.findBySeasonOrderByIdAsc(season);
         return charms.stream()
                 .map(charm -> RewardCharmResponse.builder()
                         .id(charm.getId())

@@ -9,8 +9,7 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum ChatErrorCode implements BaseErrorCode {
 
-    CHARACTER_NOT_FOUND("CHAT404", "해당 캐릭터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
-    CHARACTER_NOT_OWNED("CHAT404", "아직 만나지 않은 캐릭터입니다.", HttpStatus.NOT_FOUND);
+    CHARACTER_NOT_FOUND("CHAT404", "해당 캐릭터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;
