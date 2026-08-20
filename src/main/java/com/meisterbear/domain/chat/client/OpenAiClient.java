@@ -23,7 +23,6 @@ import org.springframework.web.client.RestClient;
 @Component
 public class OpenAiClient {
 
-    // 커넥션이 안 맺어지거나 응답이 안 오는 상황에서 요청 스레드가 무한정 잡혀있지 않도록 명시적 타임아웃을 둔다
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
     private static final URI CHAT_COMPLETIONS_URI = URI.create("https://api.openai.com/v1/chat/completions");
@@ -50,7 +49,6 @@ public class OpenAiClient {
                 .build();
     }
 
-    // 실패하면 예외를 그대로 던진다 - 캐릭터 톤 대체 문구로 바꾸는 건 호출부(ChatService)의 책임
     public String chat(String systemPrompt, List<ChatTurn> history, String userMessage) {
         List<Map<String, String>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system", "content", systemPrompt));
@@ -71,7 +69,6 @@ public class OpenAiClient {
         return response.choices().get(0).message().content();
     }
 
-    // 이미지를 base64 data URL로 인코딩해서 마지막 유저 턴에 실어 보낸다 (비전 입력). 텍스트는 안 받고 사진만 분석한다
     public String chatWithImage(String systemPrompt, List<ChatTurn> history, byte[] imageBytes, String contentType) {
         String dataUrl = "data:" + (contentType != null ? contentType : "image/jpeg") + ";base64,"
                 + Base64.getEncoder().encodeToString(imageBytes);
@@ -100,9 +97,7 @@ public class OpenAiClient {
         return response.choices().get(0).message().content();
     }
 
-    // 스트리밍 응답 - OpenAI가 토큰을 만드는 대로 SSE 라인으로 흘려주는 걸 그대로 받아서 onToken에 넘겨준다.
-    // RestClient는 전체 응답을 다 받은 뒤에야 body()가 반환되므로 못 쓰고, 라인 단위로 바로바로 처리할 수 있는
-    // 원시 HttpClient(BodyHandlers.ofLines())를 직접 쓴다. 실패하면 예외를 그대로 던진다(대체 문구 처리는 호출부 책임).
+    // RestClient는 전체 응답을 다 받아야 해서, 라인 단위 스트리밍엔 원시 HttpClient를 쓴다
     public void chatStream(String systemPrompt, List<ChatTurn> history, String userMessage, Consumer<String> onToken)
             throws IOException, InterruptedException {
         List<Map<String, Object>> messages = new ArrayList<>();
@@ -114,7 +109,6 @@ public class OpenAiClient {
         sendStreamingRequest(messages, onToken);
     }
 
-    // chatWithImage의 스트리밍 버전 - 사진 분석(케어 진단)도 토큰 단위로 흘려보낸다
     public void chatWithImageStream(String systemPrompt, List<ChatTurn> history, byte[] imageBytes,
                                      String contentType, Consumer<String> onToken)
             throws IOException, InterruptedException {
@@ -150,8 +144,7 @@ public class OpenAiClient {
         HttpResponse<java.util.stream.Stream<String>> response =
                 streamingHttpClient.send(request, HttpResponse.BodyHandlers.ofLines());
 
-        // response.body()로 스트림을 먼저 확보해 try-with-resources에 걸어야, 4xx/5xx로 던지고 나가는 경우에도
-        // 커넥션이 닫힌다. 상태코드 체크를 body() 호출보다 먼저 하면 이 스트림을 아예 안 열게 되어 리소스가 샌다.
+        // body()를 먼저 열어 try-with-resources에 걸어야 실패 시에도 커넥션이 닫힌다
         try (java.util.stream.Stream<String> lines = response.body()) {
             if (response.statusCode() >= 400) {
                 throw new IllegalStateException("OpenAI 스트리밍 요청 실패 - status=" + response.statusCode());
@@ -160,8 +153,7 @@ public class OpenAiClient {
         }
     }
 
-    // SSE 한 줄("data: {...}" 또는 "data: [DONE]")을 파싱해서 delta.content가 있으면 콜백으로 넘긴다.
-    // 파싱 실패한 개별 라인은 전체 스트림을 끊지 않고 건너뛴다(다음 토큰은 정상 처리되도록).
+    // 파싱 실패한 라인은 스트림을 끊지 않고 건너뛴다
     private void emitToken(String line, Consumer<String> onToken) {
         if (line.isBlank() || !line.startsWith("data:")) {
             return;

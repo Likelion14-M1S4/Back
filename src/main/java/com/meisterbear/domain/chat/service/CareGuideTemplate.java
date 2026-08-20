@@ -2,8 +2,7 @@ package com.meisterbear.domain.chat.service;
 
 import java.util.Map;
 
-// 인스펙터(사진 분석)가 실패했을 때 대신 내려주는, 소재 기준 고정 케어 가이드 문구.
-// 여기 값만 고치면 되고 DB 컬럼 추가는 필요 없다.
+// 인스펙터(사진 분석) 실패 시 대신 내려주는 소재 기준 고정 케어 가이드
 public class CareGuideTemplate {
 
     private CareGuideTemplate() {

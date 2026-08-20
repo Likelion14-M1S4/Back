@@ -43,13 +43,11 @@ public class AuthController {
     private final AuthService authService;
     private final KakaoClient kakaoClient;
 
-    // 로그인 완료 후 복귀를 허용할 프론트 origin 목록 (콤마 구분 프로퍼티 → List 자동 변환)
+    // 로그인 완료 후 복귀를 허용할 프론트 origin 목록
     @Value("${kakao.front-redirect-uris}")
     private List<String> frontRedirectUris;
 
-    // 허용 목록이 비면 두 리다이렉트 엔드포인트가 요청마다 500이 나므로 기동 시점에 바로 실패시킨다.
-    // 빈 원소도 걸러낸다 - env가 ","나 공백이면 [""]로 바인딩되어 isEmpty 검사를 통과한 뒤
-    // get(0)=""가 상대경로 리다이렉트(백엔드 호스트로 토큰 전달)를 만들기 때문
+    // 허용 목록이 비면 기동 시점에 실패시킨다 (빈 원소도 걸러냄)
     @PostConstruct
     private void validateFrontRedirectUris() {
         frontRedirectUris = frontRedirectUris == null
@@ -60,7 +58,7 @@ public class AuthController {
         }
     }
 
-    // 로그 위조(CRLF 인젝션) 방지 - 비인증 요청 파라미터는 개행 제거·길이 제한 후에만 기록한다
+    // 로그 위조(CRLF 인젝션) 방지
     private static String sanitizeForLog(String value) {
         if (value == null) {
             return null;
@@ -69,7 +67,7 @@ public class AuthController {
         return cleaned.length() > 100 ? cleaned.substring(0, 100) + "..." : cleaned;
     }
 
-    // 허용 목록에 있는 origin만 통과, 그 외(null·미등록)는 첫 항목으로 대체 - state 오픈 리다이렉트 방지
+    // 허용 목록에 없으면 첫 항목으로 대체 (오픈 리다이렉트 방지)
     private String resolveFrontOrigin(String origin) {
         if (origin != null && frontRedirectUris.contains(origin)) {
             return origin;
@@ -112,17 +110,14 @@ public class AuthController {
                               @RequestParam(required = false) String error,
                               HttpServletResponse response) throws IOException {
         String front = resolveFrontOrigin(state);
-        // 동의 화면 취소(error=access_denied) 또는 코드 누락 - 로그인 화면으로 복귀
         if (error != null || code == null || code.isBlank()) {
             log.warn("[AuthController] 카카오 콜백 취소/코드 누락 - error={}, front={}", sanitizeForLog(error), front);
             response.sendRedirect(front + "/login?error=kakao_cancelled");
             return;
         }
-        // 브라우저 내비게이션 엔드포인트는 어떤 실패든 리다이렉트로 끝나야 한다
-        // - GlobalExceptionHandler로 흘리면 사용자 화면에 JSON이 그대로 렌더링되므로 여기서 전부 흡수한다
+        // 실패해도 JSON을 렌더링하지 않고 리다이렉트로 끝낸다
         String target;
         try {
-            // redirectUri=null → 서버 설정값(백엔드 콜백 주소) 사용. authorize에 쓴 값과 일치해야 교환이 성공한다
             LoginResponse login = authService.kakaoLogin(code, null);
             target = front + "/oauth/kakao"
                     + "#accessToken=" + login.getAccessToken()

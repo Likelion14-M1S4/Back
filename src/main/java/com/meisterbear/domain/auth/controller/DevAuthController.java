@@ -17,8 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// 개발/Swagger 테스트 전용 컨트롤러. dev 프로필에서만 등록되며, 공유 시크릿 헤더로 보호한다.
-// (라이브 서버가 dev 프로필로 뜨므로 시크릿이 없으면 이 API는 비활성화된다 - 아무나 토큰을 못 만들게)
+// 개발/Swagger 테스트 전용. dev 프로필에서만 등록, 공유 시크릿 헤더로 보호한다.
 @Tag(name = "Auth (dev)", description = "개발 전용 인증 API")
 @RestController
 @Profile("dev")
@@ -28,7 +27,7 @@ public class DevAuthController {
 
     private static final String SECRET_HEADER = "X-Test-Secret";
 
-    // 미설정(blank)이면 이 엔드포인트를 비활성화한다 - 라이브 오노출 방지
+    // 미설정이면 이 엔드포인트를 비활성화한다
     @Value("${auth.test-token-secret:}")
     private String testTokenSecret;
 
