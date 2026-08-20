@@ -35,7 +35,8 @@ public class UserTag {
     @Column(name = "tag_type", nullable = false)
     private TagType tagType;
 
-    // STORE 태그의 발생 매장. 매장과 무관한 태그는 null
+    // STORE 태그가 어느 매장에서 발생했는지. 매장 태그 이력을 매장별로 묶는 키
+    // (PURCHASE 태그 등 매장과 무관한 태그는 null 허용)
     @Column(name = "store_id")
     private Long storeId;
 
