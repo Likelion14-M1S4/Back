@@ -63,17 +63,17 @@ public class CharacterService {
                 .build();
     }
 
-    // 캐릭터=참 1:1 전제. 수집 시점에 매칭되는 참이 있으면 표시 정보(이름/이미지)를 캐릭터 값으로 맞추고,
+    // 캐릭터=참 1:1 전제. 수집 시점에 매칭되는 참이 있으면 표시 이름을 캐릭터 값으로 맞추고,
     // 없으면 캐릭터 기준으로 새로 만들어 1:1 연결을 보장한다. 응답에 charmId를 실어줘야 해서 참 자체를 반환한다.
+    // 이미지는 동기화 대상이 아니다 - 참 상점용 이미지와 캐릭터 스토리용 이미지는 용도가 달라 각자 값을 유지한다.
     private Charm syncCharmDisplayInfo(Character character) {
         Charm charm = charmRepository.findFirstByCharacterIdOrderByIdAsc(character.getId())
                 .orElseGet(() -> createCharmFor(character));
         if (charm == null) {
             return null;
         }
-        if (!Objects.equals(charm.getName(), character.getName())
-                || !Objects.equals(charm.getImgUrl(), character.getImgUrl())) {
-            charm.syncDisplayInfo(character.getName(), character.getImgUrl());
+        if (!Objects.equals(charm.getName(), character.getName())) {
+            charm.syncName(character.getName());
         }
         return charm;
     }
