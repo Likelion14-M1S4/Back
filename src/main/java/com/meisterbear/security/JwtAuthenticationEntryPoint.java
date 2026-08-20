@@ -13,7 +13,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
-// 미인증 접근 시 시큐리티 기본 401 대신 BaseResponse 형식 JSON을 내려준다
+// 인증 없이(또는 유효하지 않은 토큰으로) 보호된 API에 접근했을 때, 시큐리티 기본 401 대신 BaseResponse 형식 JSON을 내려준다
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {

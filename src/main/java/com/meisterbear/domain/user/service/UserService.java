@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class UserService {
 
-    // YYYY-MM-DD 형식만 확인, 실제 날짜 유효성은 검사하지 않음
+    // YYYY-MM-DD 자릿수·구분자 형식만 확인. 카카오 미동의 시 월/일을 "00"으로 받을 수 있어 실제 날짜 유효성은 검사하지 않는다.
     private static final Pattern BIRTH_DATE_PATTERN = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$");
 
     private final UserRepository userRepository;
@@ -31,6 +31,7 @@ public class UserService {
         return toUserResponse(user);
     }
 
+    // nickname/phone/birthDate는 전부 선택 필드 - 요청에 없거나 null이면 검증하지 않고 기존 값을 그대로 둔다
     @Transactional
     public UserResponse updateMe(Long userId, UpdateUserRequest request) {
         User user = userRepository.findById(userId)
@@ -47,7 +48,7 @@ public class UserService {
         return toUserResponse(user);
     }
 
-    // 10자리면 3-3-4, 11자리면 3-4-4로 공백 구분 (예: 010 9973 7761)
+    // 숫자만 남겨서 10자리면 3-3-4, 11자리면 3-4-4로 공백 구분 (예: 010 9973 7761)
     private String normalizePhone(String phone) {
         String digits = phone.replaceAll("[^0-9]", "");
         if (digits.length() == 10) {
