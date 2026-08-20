@@ -2,6 +2,9 @@ package com.meisterbear.domain.story.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.meisterbear.domain.character.entity.Character;
+import com.meisterbear.domain.character.exception.CharacterErrorCode;
+import com.meisterbear.domain.character.repository.CharacterRepository;
 import com.meisterbear.domain.charm.entity.Charm;
 import com.meisterbear.domain.charm.repository.CharmRepository;
 import com.meisterbear.domain.story.dto.response.RewardCharmResponse;
@@ -34,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class StoryService {
 
+    private final CharacterRepository characterRepository;
     private final CharmRepository charmRepository;
     private final StoryRepository storyRepository;
     private final UserStoryProgressRepository userStoryProgressRepository;
@@ -99,6 +103,8 @@ public class StoryService {
 
         UserStoryProgress progress = userStoryProgressRepository.findByUserIdAndStoryId(userId, storyId)
                 .orElse(null);
+        Character character = characterRepository.findById(story.getCharacterId())
+                .orElseThrow(() -> new CustomException(CharacterErrorCode.CHARACTER_NOT_FOUND));
 
         log.info("[StoryService] 챕터 상세 조회 완료 - userId={}, storyId={}", userId, storyId);
         return StoryDetailResponse.builder()
@@ -109,6 +115,8 @@ public class StoryService {
                 .readAt(progress != null ? progress.getReadAt() : null)
                 .scenes(parseScenes(story.getScenes()))
                 .seasonCompleted(isSeasonCompleted(userId, story))
+                .characterName(character.getName())
+                .characterImgUrl(character.getImgUrl())
                 .build();
     }
 

@@ -31,6 +31,12 @@ public class StoryDetailResponse {
     @Schema(description = "장면 목록 (order 순 정렬)")
     private List<SceneResponse> scenes;
 
+    @Schema(description = "character.name", example = "테오 라이언")
+    private String characterName;
+
+    @Schema(description = "character.img_url", example = "https://cdn.meisterbear.com/character/6.png")
+    private String characterImgUrl;
+
     @JsonProperty("isSeasonCompleted")
     @Schema(description = "이 챕터가 속한 시즌의 전체 챕터를 이 유저가 완주했는지 여부 (true면 프론트에서 시즌 완료 화면 노출)",
             example = "false")
