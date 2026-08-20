@@ -40,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class CharmService {
 
-    // collection_name이 비어있는 참을 묶는 그룹명 (groupingBy가 null을 못 받아서 치환)
+    // collection_name이 null인 참을 묶는 그룹명 (groupingBy가 null을 못 받아서 치환)
     private static final String UNCATEGORIZED_COLLECTION_NAME = "기타";
 
     private final CharmReceiptRepository charmReceiptRepository;

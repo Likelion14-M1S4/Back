@@ -9,7 +9,8 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
 
     List<Story> findByCharacterIdOrderByIdAsc(Long characterId);
 
-    // 시즌 하나만 운영 - 기준 시즌을 정하는 데 사용
+    // 시즌 하나만 운영 - 여기서 뽑은 기준 story의 characterId, season을
+    // StoryService.findStories/isCurrentSeasonCompleted가 그대로 사용
     Optional<Story> findFirstByOrderByIdAsc();
 
     List<Story> findByCharacterIdAndSeason(Long characterId, String season);
