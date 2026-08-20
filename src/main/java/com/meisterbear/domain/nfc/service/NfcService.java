@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -129,7 +130,9 @@ public class NfcService {
 
     // 태그한 제품의 진열 매장으로 방문 이력(user_tag STORE)을 남긴다.
     // 매장 연결이 없는 제품이면 조용히 건너뛴다 - 이력은 부가 기능이라 태그 검증 자체를 막지 않는다.
-    // 같은 유저·제품·매장은 하루 1회만 기록한다 (재태그 시 이력 상세의 날짜 그룹에 같은 제품이 중복 노출되는 것 방지)
+    // 같은 유저·제품·매장은 하루 1회만 기록한다 (재태그 시 이력 상세의 날짜 그룹에 같은 제품이 중복 노출되는 것 방지).
+    // exists 체크 후 insert라 거의 동시에 두 요청이 들어오면 둘 다 통과할 수 있는데, DB의
+    // UQ_USER_TAG_DAILY(user_id, product_id, store_id, tag_type, tagged_date) 유니크 제약이 최종 방어선이다.
     private void recordStoreTag(Long userId, Product product) {
         productStoreRepository.findFirstByProductIdOrderByStoreIdAsc(product.getId())
                 .ifPresent(productStore -> {
@@ -141,12 +144,17 @@ public class NfcService {
                     if (alreadyTaggedToday) {
                         return;
                     }
-                    userTagRepository.save(UserTag.builder()
-                            .userId(userId)
-                            .productId(product.getId())
-                            .tagType(TagType.STORE)
-                            .storeId(productStore.getStoreId())
-                            .build());
+                    try {
+                        userTagRepository.save(UserTag.builder()
+                                .userId(userId)
+                                .productId(product.getId())
+                                .tagType(TagType.STORE)
+                                .storeId(productStore.getStoreId())
+                                .build());
+                    } catch (DataIntegrityViolationException e) {
+                        // 동시 요청으로 같은 유저·제품·매장·날짜 조합이 이미 기록됐다면(UNIQUE 위반) 조용히 무시한다
+                        log.warn("[NfcService] 매장 태그 중복 기록 시도 무시 - userId={}, productId={}", userId, product.getId());
+                    }
                 });
     }
 

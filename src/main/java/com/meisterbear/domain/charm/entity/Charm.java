@@ -25,7 +25,8 @@ public class Charm {
     private Long storeId;
 
     // 이 참을 받으려면 완주해야 하는 시즌 스토리의 캐릭터 (character는 시즌×지역 템플릿)
-    @Column(name = "character_id", nullable = false)
+    // 캐릭터=참 1:1 - 캐릭터당 참이 여러 개 생기는 걸 막기 위해 unique
+    @Column(name = "character_id", nullable = false, unique = true)
     private Long characterId;
 
     // 예: AW2026. character_id와 함께 story.character_id + story.season 조회에 사용
@@ -72,10 +73,9 @@ public class Charm {
         this.seasonLimited = seasonLimited;
     }
 
-    // 캐릭터=참 1:1이라 표시 정보(이름/이미지)는 캐릭터 쪽을 원본으로 삼는다.
-    // 캐릭터 수집(collect) 시점에 이 참의 표시 정보를 캐릭터 값으로 맞춰 드리프트를 방지한다.
-    public void syncDisplayInfo(String characterName, String characterImgUrl) {
+    // 캐릭터=참 1:1이라 이름은 캐릭터 쪽을 원본으로 삼는다. 캐릭터 수집(collect) 시점에 맞춰 드리프트를 방지한다.
+    // 이미지는 동기화 대상이 아니다 - 참 상점용 이미지와 캐릭터 이미지는 용도가 달라 참 자체 값을 그대로 유지한다.
+    public void syncName(String characterName) {
         this.name = characterName;
-        this.imgUrl = characterImgUrl;
     }
 }

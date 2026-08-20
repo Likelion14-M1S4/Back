@@ -21,7 +21,8 @@ public class Character {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "product_id", nullable = false)
+    // 제품 하나=캐릭터 하나 - 같은 제품에 캐릭터가 여러 개 생기는 걸 막기 위해 unique
+    @Column(name = "product_id", nullable = false, unique = true)
     private Long productId;
 
     @Column(nullable = false, length = 100)
