@@ -73,9 +73,8 @@ public class Charm {
         this.seasonLimited = seasonLimited;
     }
 
-    // 캐릭터=참 1:1이라 표시 정보(이름/이미지)는 캐릭터 쪽을 원본으로 삼는다.
-    // 캐릭터 수집(collect) 시점에 이 참의 표시 정보를 캐릭터 값으로 맞춰 드리프트를 방지한다.
-    // 이미지는 참 자체 값을 유지한다(동기화 대상 아님) - 이름만 캐릭터 값으로 맞춘다
+    // 캐릭터=참 1:1이라 이름은 캐릭터 쪽을 원본으로 삼는다. 캐릭터 수집(collect) 시점에 맞춰 드리프트를 방지한다.
+    // 이미지는 동기화 대상이 아니다 - 참 상점용 이미지와 캐릭터 이미지는 용도가 달라 참 자체 값을 그대로 유지한다.
     public void syncName(String characterName) {
         this.name = characterName;
     }

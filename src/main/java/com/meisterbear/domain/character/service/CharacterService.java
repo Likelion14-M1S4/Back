@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -94,17 +95,23 @@ public class CharacterService {
             log.warn("[CharacterService] 참 자동 생성 스킵(매장 정보 없음) - characterId={}", character.getId());
             return null;
         }
-        Charm charm = charmRepository.save(Charm.builder()
-                .storeId(storeId)
-                .characterId(character.getId())
-                .season(product.getSeason())
-                .name(character.getName())
-                .imgUrl(character.getImgUrl())
-                .seasonLimited(true)
-                .build());
-        log.info("[CharacterService] 캐릭터 수집 시 매칭 참 자동 생성 - characterId={}, charmId={}",
-                character.getId(), charm.getId());
-        return charm;
+        try {
+            Charm charm = charmRepository.save(Charm.builder()
+                    .storeId(storeId)
+                    .characterId(character.getId())
+                    .season(product.getSeason())
+                    .name(character.getName())
+                    .imgUrl(character.getImgUrl())
+                    .seasonLimited(true)
+                    .build());
+            log.info("[CharacterService] 캐릭터 수집 시 매칭 참 자동 생성 - characterId={}, charmId={}",
+                    character.getId(), charm.getId());
+            return charm;
+        } catch (DataIntegrityViolationException e) {
+            // 동시 요청으로 같은 캐릭터에 참이 이미 생성됐다면(character_id UNIQUE 위반), 그 참을 그대로 재조회해서 반환한다
+            log.warn("[CharacterService] 참 동시 생성 충돌 - 기존 참 재조회 - characterId={}", character.getId());
+            return charmRepository.findFirstByCharacterIdOrderByIdAsc(character.getId()).orElseThrow(() -> e);
+        }
     }
 
     // 기존 행이 있으면 상태 전이 규칙(LOCKED→PREVIEW→OWNED)을 따라 OWNED까지 승격. 이미 OWNED면 아무것도 안 함
