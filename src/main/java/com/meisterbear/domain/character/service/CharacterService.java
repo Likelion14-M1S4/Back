@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,17 +64,17 @@ public class CharacterService {
                 .build();
     }
 
-    // 캐릭터=참 1:1 전제. 수집 시점에 매칭되는 참이 있으면 표시 정보(이름/이미지)를 캐릭터 값으로 맞추고,
+    // 캐릭터=참 1:1 전제. 수집 시점에 매칭되는 참이 있으면 표시 이름을 캐릭터 값으로 맞추고,
     // 없으면 캐릭터 기준으로 새로 만들어 1:1 연결을 보장한다. 응답에 charmId를 실어줘야 해서 참 자체를 반환한다.
+    // 이미지는 동기화 대상이 아니다 - 참 상점용 이미지와 캐릭터 스토리용 이미지는 용도가 달라 각자 값을 유지한다.
     private Charm syncCharmDisplayInfo(Character character) {
         Charm charm = charmRepository.findFirstByCharacterIdOrderByIdAsc(character.getId())
                 .orElseGet(() -> createCharmFor(character));
         if (charm == null) {
             return null;
         }
-        if (!Objects.equals(charm.getName(), character.getName())
-                || !Objects.equals(charm.getImgUrl(), character.getImgUrl())) {
-            charm.syncDisplayInfo(character.getName(), character.getImgUrl());
+        if (!Objects.equals(charm.getName(), character.getName())) {
+            charm.syncName(character.getName());
         }
         return charm;
     }
@@ -94,17 +95,23 @@ public class CharacterService {
             log.warn("[CharacterService] 참 자동 생성 스킵(매장 정보 없음) - characterId={}", character.getId());
             return null;
         }
-        Charm charm = charmRepository.save(Charm.builder()
-                .storeId(storeId)
-                .characterId(character.getId())
-                .season(product.getSeason())
-                .name(character.getName())
-                .imgUrl(character.getImgUrl())
-                .seasonLimited(true)
-                .build());
-        log.info("[CharacterService] 캐릭터 수집 시 매칭 참 자동 생성 - characterId={}, charmId={}",
-                character.getId(), charm.getId());
-        return charm;
+        try {
+            Charm charm = charmRepository.save(Charm.builder()
+                    .storeId(storeId)
+                    .characterId(character.getId())
+                    .season(product.getSeason())
+                    .name(character.getName())
+                    .imgUrl(character.getImgUrl())
+                    .seasonLimited(true)
+                    .build());
+            log.info("[CharacterService] 캐릭터 수집 시 매칭 참 자동 생성 - characterId={}, charmId={}",
+                    character.getId(), charm.getId());
+            return charm;
+        } catch (DataIntegrityViolationException e) {
+            // 동시 요청으로 같은 캐릭터에 참이 이미 생성됐다면(character_id UNIQUE 위반), 그 참을 그대로 재조회해서 반환한다
+            log.warn("[CharacterService] 참 동시 생성 충돌 - 기존 참 재조회 - characterId={}", character.getId());
+            return charmRepository.findFirstByCharacterIdOrderByIdAsc(character.getId()).orElseThrow(() -> e);
+        }
     }
 
     // 기존 행이 있으면 상태 전이 규칙(LOCKED→PREVIEW→OWNED)을 따라 OWNED까지 승격. 이미 OWNED면 아무것도 안 함

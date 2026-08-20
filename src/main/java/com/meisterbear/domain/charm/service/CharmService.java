@@ -179,14 +179,13 @@ public class CharmService {
         return response;
     }
 
-    // 참 추천 - 상단엔 선택한 참 상세, 하단엔 같은 collection_name×season(=같은 시즌 참 장식)의 나머지 참들을 반환
+    // 참 추천 - 상단엔 선택한 참 상세, 하단엔 이 참을 제외한 전체 참 목록을 반환
     public CharmRecommendationResponse findCharmRecommendations(Long userId, Long charmId) {
         Charm charm = charmRepository.findById(charmId)
                 .orElseThrow(() -> new CustomException(CharmErrorCode.CHARM_NOT_FOUND));
 
-        List<Charm> similarCharms = charmRepository
-                .findByCollectionNameAndSeasonAndIdNot(charm.getCollectionName(), charm.getSeason(), charm.getId());
-        List<RecommendedCharmResponse> recommendations = similarCharms.stream()
+        List<Charm> otherCharms = charmRepository.findByIdNot(charm.getId());
+        List<RecommendedCharmResponse> recommendations = otherCharms.stream()
                 .map(similar -> RecommendedCharmResponse.builder()
                         .id(similar.getId())
                         .characterId(similar.getCharacterId())
