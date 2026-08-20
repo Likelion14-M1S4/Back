@@ -15,7 +15,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Check;
 import org.hibernate.annotations.CreationTimestamp;
 
-// NULL은 유니크 인덱스에서 서로 다른 값 취급이라, 두 제약은 각각 제품/참 찜 중복만 막는다
+// product_id/charm_id는 NULL이면 MySQL 유니크 인덱스에서 서로 다른 값으로 취급돼 다른 로우와 충돌하지 않으므로,
+// 이 두 유니크 제약은 각각 "제품을 찜한 로우끼리", "참을 찜한 로우끼리"만 유저당 중복을 막는다 (동시 토글로 인한 중복 찜 방지)
 @Entity
 @Getter
 @Table(name = "wishlist",

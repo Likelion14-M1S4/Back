@@ -34,7 +34,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/chat")
 public class ChatController {
 
-    // OpenAI 응답 지연을 감안해 넉넉히 잡음
+    // OpenAI 응답 지연을 감안해 넉넉히 잡음 - 이 시간 안에 emitter.complete()가 안 불리면 타임아웃 처리된다
     private static final long STREAM_TIMEOUT_MS = 60_000L;
 
     private final ChatService chatService;
