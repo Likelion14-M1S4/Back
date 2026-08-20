@@ -41,11 +41,10 @@ public class ProductTagService {
     private final StoreRepository storeRepository;
     private final StoreService storeService;
 
-    // 매장 태그 이력 목록. STORE 태그를 매장별로 묶어 마지막 방문일과 함께 반환한다 (최근 방문 매장 순)
     public List<StoreTagHistoryResponse> getStoreTagHistory(Long userId) {
         List<UserTag> tags = userTagRepository.findByUserIdAndTagTypeOrderByTaggedAtDesc(userId, TagType.STORE);
 
-        // 최근 순으로 정렬된 태그를 매장별로 처음 만난 순서 = 마지막 방문이 최근인 매장 순 (LinkedHashMap으로 순서 보존)
+        // LinkedHashMap으로 최근 방문 매장 순을 보존
         Map<Long, LocalDateTime> lastVisitedByStore = new LinkedHashMap<>();
         for (UserTag tag : tags) {
             if (tag.getStoreId() != null) {
@@ -70,7 +69,6 @@ public class ProductTagService {
         return responses;
     }
 
-    // 매장 태그 상세. 매장 정보 + 그 매장에서 태그한 제품들을 날짜별로 묶어 반환한다 (최근 날짜 순)
     public StoreTagDetailResponse getStoreTagDetail(Long userId, Long storeId) {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new CustomException(StoreErrorCode.STORE_NOT_FOUND));
@@ -81,7 +79,6 @@ public class ProductTagService {
                         tags.stream().map(UserTag::getProductId).toList()).stream()
                 .collect(Collectors.toMap(Product::getId, Function.identity()));
 
-        // 최근 순으로 정렬된 태그를 날짜별로 그룹핑 (LinkedHashMap으로 최근 날짜 순 보존)
         Map<LocalDate, List<TaggedProductResponse>> groups = new LinkedHashMap<>();
         for (UserTag tag : tags) {
             Product product = products.get(tag.getProductId());
@@ -100,7 +97,6 @@ public class ProductTagService {
                         .build())
                 .toList();
 
-        // 프론트 화면은 주소 끝에 우편번호를 붙여 표기한다 (mock 규약)
         String address = store.getPostalCode() != null
                 ? store.getAddress() + " " + store.getPostalCode()
                 : store.getAddress();

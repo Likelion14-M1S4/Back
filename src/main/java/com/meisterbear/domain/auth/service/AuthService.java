@@ -34,7 +34,7 @@ import org.springframework.web.client.RestClientException;
 @Transactional(readOnly = true)
 public class AuthService {
 
-    // 카카오가 닉네임을 안 내려주는 경우(동의 안 함) 사용할 기본 닉네임 - nickname 컬럼은 NOT NULL이라 항상 값이 필요하다
+    // 카카오 닉네임 미동의 시 사용할 기본값 (nickname 컬럼 NOT NULL)
     private static final String DEFAULT_NICKNAME = "사용자";
 
     private final KakaoClient kakaoClient;
@@ -49,8 +49,7 @@ public class AuthService {
     private final OrderItemRepository orderItemRepository;
     private final CharmReceiptRepository charmReceiptRepository;
 
-    // 카카오 소셜 로그인(인가 코드 방식). 코드를 카카오 토큰으로 교환한 뒤 사용자 정보를 조회하고,
-    // 최초 로그인이면 회원 생성 후 토큰 발급, 기존 회원이면 토큰만 재발급하고 refresh를 rotate한다
+    // 최초 로그인이면 회원 생성, 기존 회원이면 refresh를 rotate한다
     @Transactional
     public LoginResponse kakaoLogin(String code, String redirectUri) {
         String kakaoAccessToken = exchangeCodeForToken(code, redirectUri);
@@ -78,8 +77,7 @@ public class AuthService {
                 .build();
     }
 
-    // 토큰 재발급(rotate). refresh 토큰을 검증하고 DB에 저장된 값과 일치할 때만 새 access+refresh를 발급한다.
-    // DB 값과 대조하므로 로그아웃(refresh null)했거나 더 최근 로그인/재발급으로 rotate된 옛 토큰은 거부된다(단일 세션).
+    // DB 저장값과 일치할 때만 재발급 (단일 세션)
     @Transactional
     public TokenResponse reissue(String refreshToken) {
         if (!jwtProvider.validateRefreshToken(refreshToken)) {
@@ -103,7 +101,6 @@ public class AuthService {
                 .build();
     }
 
-    // 로그아웃. refresh 토큰을 무효화(null)해 이후 재발급을 막는다. access 토큰은 만료(60분)까지 유효하다(stateless).
     @Transactional
     public void logout(Long userId) {
         User user = userRepository.findById(userId)
@@ -112,7 +109,7 @@ public class AuthService {
         log.info("[AuthService] 로그아웃 완료 - userId={}", userId);
     }
 
-    // 회원 탈퇴(하드 삭제). 유저 소유 데이터는 삭제하고, 매장측 수령 기록(charm_receipt)은 계정 연결만 해제해 보존한다.
+    // 하드 삭제. charm_receipt는 매장측 기록이라 연결만 해제하고 보존한다.
     @Transactional
     public void withdraw(Long userId) {
         User user = userRepository.findById(userId)
@@ -131,13 +128,11 @@ public class AuthService {
         log.info("[AuthService] 회원 탈퇴 완료 - userId={}", userId);
     }
 
-    // 인가 코드를 카카오 액세스 토큰으로 교환. 4xx(코드 무효/만료/redirect_uri 불일치)와 5xx(카카오 장애)를 각각 AuthErrorCode로 변환한다
     private String exchangeCodeForToken(String code, String redirectUri) {
         KakaoTokenResponse token;
         try {
             token = kakaoClient.getToken(code, redirectUri);
         } catch (HttpClientErrorException e) {
-            // 카카오는 실패 사유를 KOE 코드로 내려주므로(예: KOE320 코드 재사용) 원인 추적용으로 body를 남긴다
             log.warn("[AuthService] 카카오 인가 코드 교환 실패 - status={}, body={}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             throw new CustomException(AuthErrorCode.INVALID_KAKAO_CODE);
@@ -151,7 +146,6 @@ public class AuthService {
         return token.accessToken();
     }
 
-    // 토큰으로 카카오 사용자 정보를 조회. 4xx(토큰 무효)와 5xx(카카오 장애)를 각각 AuthErrorCode로 변환한다
     private KakaoUserResponse fetchKakaoUser(String kakaoAccessToken) {
         KakaoUserResponse kakaoUser;
         try {
@@ -177,7 +171,6 @@ public class AuthService {
         return DEFAULT_NICKNAME;
     }
 
-    // email은 선택값 - 카카오 미동의 시 null로 저장된다 (추후 사용자 확인/구매 연결의 키로 사용)
     private String resolveEmail(KakaoUserResponse kakaoUser) {
         KakaoUserResponse.KakaoAccount account = kakaoUser.kakaoAccount();
         return account != null ? account.email() : null;

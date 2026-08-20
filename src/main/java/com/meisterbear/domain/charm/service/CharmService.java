@@ -40,8 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class CharmService {
 
-    // collection_name이 비어있는 참을 묶는 그룹명. groupingBy는 classifier가 null을 반환하면
-    // NullPointerException을 던지므로, 그룹핑 전에 항상 이 기본값으로 치환한다.
+    // collection_name이 null인 참을 묶는 그룹명 (groupingBy가 null을 못 받아서 치환)
     private static final String UNCATEGORIZED_COLLECTION_NAME = "기타";
 
     private final CharmReceiptRepository charmReceiptRepository;
@@ -49,8 +48,7 @@ public class CharmService {
     private final CollectionRepository collectionRepository;
     private final StoryService storyService;
 
-    // 참 목록 - uid로 태그해서 수집(collect)한 캐릭터의 참만 id 오름차순으로 카드 형태로 반환.
-    // 캐릭터=참 1:1이므로 캐릭터를 하나도 안 모았으면 빈 목록이다.
+    // 수집(collect)한 캐릭터의 참만 id 오름차순으로 반환
     public CharmListResponse findAllCharms(Long userId) {
         List<Long> ownedCharacterIds = collectionRepository.findCharacterIdsByUserIdAndStatus(
                 userId, CollectionStatus.OWNED);
@@ -120,8 +118,7 @@ public class CharmService {
                 .build();
     }
 
-    // 구매(수령) 가능한 참 목록 - DB에 있는 유일한 시즌을 이 유저가 완주했는지로 판단(캐릭터/시즌 구분 없이 전체 참 대상).
-    // 완주하지 못했으면 빈 목록, 완주했으면 이미 수령 완료(COMPLETED)한 참을 제외한 나머지를 컬렉션명 기준으로 그룹핑해서 반환.
+    // 시즌 완주 여부로 구매 가능 판단, 이미 수령한 참은 제외
     public PurchasableCharmListResponse findPurchasableCharms(Long userId) {
         if (!storyService.isCurrentSeasonCompleted(userId)) {
             log.info("[CharmService] 구매 가능한 참 목록 조회 완료(시즌 미완주) - userId={}", userId);
@@ -169,7 +166,6 @@ public class CharmService {
                 .build();
     }
 
-    // 참 상세 - 참 정보만 반환. 시즌 한정 참의 구매 가능 여부는 프론트가 스토리 상세 조회(isSeasonCompleted)로 판단
     public CharmDetailResponse findCharmDetail(Long userId, Long charmId) {
         Charm charm = charmRepository.findById(charmId)
                 .orElseThrow(() -> new CustomException(CharmErrorCode.CHARM_NOT_FOUND));

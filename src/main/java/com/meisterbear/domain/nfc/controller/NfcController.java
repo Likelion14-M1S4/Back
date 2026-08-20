@@ -75,7 +75,6 @@ public class NfcController {
     public BaseResponse<NfcVerifyResponse> verify(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam String uid) {
-        // 온보딩 퍼널은 비로그인 허용(permitAll) - 익명이면 이력 기록 없이 검증만 수행
         Long userId = userDetails != null ? userDetails.getUser().getId() : null;
         return BaseResponse.success(nfcService.verify(userId, uid));
     }
@@ -123,7 +122,6 @@ public class NfcController {
     public BaseResponse<CertificateResponse> getCertificate(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(required = false) String uid) {
-        // 온보딩 퍼널은 비로그인 허용(permitAll) - uid 기반 조회는 유저 무관
         Long userId = userDetails != null ? userDetails.getUser().getId() : null;
         return BaseResponse.success(nfcService.getCertificate(userId, uid));
     }

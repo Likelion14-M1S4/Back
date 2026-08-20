@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 개발/Swagger 테스트 전용. 카카오 없이 JWT를 즉시 발급한다. dev 프로필에서만 빈으로 등록된다.
+// 개발/Swagger 테스트 전용. 카카오 없이 JWT를 즉시 발급한다.
 @Slf4j
 @Service
 @Profile("dev")
