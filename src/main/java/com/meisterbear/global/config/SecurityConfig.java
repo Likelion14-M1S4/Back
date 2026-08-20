@@ -35,8 +35,7 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
-                        // NFC 온보딩 퍼널(태그→인증서)은 기획상 로그인 전에 일어나므로 조회 2종을 비로그인 허용.
-                        // 수집(POST /api/characters/**)은 유저 귀속이 필요해 인증 유지
+                        // NFC 온보딩 퍼널은 로그인 전 조회 허용, 수집(POST /api/characters/**)은 인증 필요
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/nfc/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())

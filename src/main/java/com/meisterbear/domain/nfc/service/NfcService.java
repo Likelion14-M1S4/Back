@@ -49,9 +49,7 @@ public class NfcService {
     private final OrderItemRepository orderItemRepository;
     private final StoreRepository storeRepository;
 
-    // NFC 태그 검증(제품 태그). 제품·캐릭터 정보를 내려주고, 부수효과로 방문 매장 태그 이력을 기록한다.
-    // 실물 NFC에 각인된 URL의 uid가 그대로 들어온다.
-    // 기획상 태그는 로그인 전에 일어나므로(온보딩 퍼널) 비로그인 허용 - userId가 null이면 이력 기록만 생략한다
+    // 비로그인이면 이력 기록만 생략한다
     @Transactional
     public NfcVerifyResponse verify(Long userId, String uid) {
         Product product = productRepository.findByNfcUid(uid)
@@ -71,12 +69,8 @@ public class NfcService {
                 .build();
     }
 
-    // 정품 인증서 조회. 기획상 태그 직후(로그인 전) 화면이므로 비로그인 허용.
-    // uid가 있으면 "이 실물 제품"의 최신 구매 기록 기준(유저 무관 - 실물에 대한 인증서라는 의미),
-    // uid가 없으면 로그인 유저의 최근 구매 1건 기준(마이페이지류 진입 대비).
-    // 인증서 필드는 구매 기록(order_item)과 제품(product)에서 그대로 채운다
+    // uid 있으면 그 실물의 최신 구매 기록(유저 무관), 없으면 로그인 유저의 최근 구매 1건
     public CertificateResponse getCertificate(Long userId, String uid) {
-        // uid 경로에서는 제품을 먼저 특정하므로, 조회한 Product를 재사용해 동일 행 중복 SELECT를 피한다
         Product product;
         OrderItem order;
         if (uid != null && !uid.isBlank()) {
@@ -86,7 +80,6 @@ public class NfcService {
                     .orElseThrow(() -> new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND));
         } else {
             if (userId == null) {
-                // 비로그인 + uid 없음: 어떤 인증서인지 특정할 수 없다
                 throw new CustomException(NfcErrorCode.CERTIFICATE_NOT_FOUND);
             }
             order = orderItemRepository.findFirstByUserIdOrderByOrderedAtDescIdDesc(userId)
@@ -97,7 +90,6 @@ public class NfcService {
                 .map(Store::getName)
                 .orElse(null);
 
-        // 발급일은 보증서 발급일(warranty_issued_at)을 우선하고, 없으면 구매일로 대체
         LocalDate issuedAt = order.getWarrantyIssuedAt() != null
                 ? order.getWarrantyIssuedAt()
                 : order.getOrderedAt().toLocalDate();
@@ -117,7 +109,7 @@ public class NfcService {
                 .build();
     }
 
-    // "2026.08.16 pm.03:00" - 프론트 화면이 쓰는 날짜+시간 표기 포맷 (12시간제, am/pm 소문자)
+    // "2026.08.16 pm.03:00" 형식
     private String formatDateTime(LocalDateTime dateTime) {
         if (dateTime == null) {
             return null;
@@ -128,11 +120,7 @@ public class NfcService {
         return String.format("%s %s.%02d:%02d", dateTime.format(DATE_FORMAT), meridiem, hour12, dateTime.getMinute());
     }
 
-    // 태그한 제품의 진열 매장으로 방문 이력(user_tag STORE)을 남긴다.
-    // 매장 연결이 없는 제품이면 조용히 건너뛴다 - 이력은 부가 기능이라 태그 검증 자체를 막지 않는다.
-    // 같은 유저·제품·매장은 하루 1회만 기록한다 (재태그 시 이력 상세의 날짜 그룹에 같은 제품이 중복 노출되는 것 방지).
-    // exists 체크 후 insert라 거의 동시에 두 요청이 들어오면 둘 다 통과할 수 있는데, DB의
-    // UQ_USER_TAG_DAILY(user_id, product_id, store_id, tag_type, tagged_date) 유니크 제약이 최종 방어선이다.
+    // 매장 연결이 없으면 건너뛴다. 같은 유저·제품·매장은 하루 1회만 기록(UQ_USER_TAG_DAILY가 최종 방어선).
     private void recordStoreTag(Long userId, Product product) {
         productStoreRepository.findFirstByProductIdOrderByStoreIdAsc(product.getId())
                 .ifPresent(productStore -> {
@@ -152,13 +140,12 @@ public class NfcService {
                                 .storeId(productStore.getStoreId())
                                 .build());
                     } catch (DataIntegrityViolationException e) {
-                        // 동시 요청으로 같은 유저·제품·매장·날짜 조합이 이미 기록됐다면(UNIQUE 위반) 조용히 무시한다
                         log.warn("[NfcService] 매장 태그 중복 기록 시도 무시 - userId={}, productId={}", userId, product.getId());
                     }
                 });
     }
 
-    // 제품에 연결된 캐릭터. 없으면 null (캐릭터 없는 제품도 태그/인증서는 정상 동작해야 한다)
+    // 제품에 연결된 캐릭터. 없으면 null
     private NfcCharacterResponse findCharacter(Product taggedProduct) {
         Character character = characterRepository.findByProductId(taggedProduct.getId()).orElse(null);
         if (character == null) {
@@ -178,8 +165,7 @@ public class NfcService {
                 .build();
     }
 
-    // 컬렉션명: 태그한 제품의 시즌과 일치하는 참을 우선하고(시즌별로 컬렉션명이 다를 수 있음),
-    // 시즌이 없거나 해당 시즌 참이 없거나 그 참의 컬렉션명이 비어 있으면 시즌 무관 첫 참으로 폴백한다
+    // 시즌 일치 참을 우선하고, 없으면 시즌 무관 첫 참으로 폴백
     private String resolveCollectionName(Long characterId, String season) {
         if (season != null && !season.isBlank()) {
             String seasonalName = charmRepository

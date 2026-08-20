@@ -42,7 +42,7 @@ public class User extends BaseTimeEntity {
 
     private String phone;
 
-    // 카카오는 생일(MMDD)과 출생연도를 별도로, 그것도 동의한 경우만 내려줘서 완전한 날짜가 아닐 수 있음 - 문자열로 보관
+    // 카카오는 생일/출생연도를 동의 시에만 별도로 내려줘서 완전한 날짜가 아닐 수 있어 문자열로 보관
     @Column(name = "birth_date")
     private String birthDate;
 

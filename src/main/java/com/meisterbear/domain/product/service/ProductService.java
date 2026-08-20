@@ -38,7 +38,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ProductService {
 
-    // 추천 페이지 구성 문구/이미지. 기획 확정 카피가 오면 여기만 바꾸면 된다 (별도 테이블을 둘 만큼 유동적이지 않음)
     private static final String IMAGE_BASE = "https://meisterbear-images.s3.ap-northeast-2.amazonaws.com";
     private static final String RECOMMEND_HERO_IMAGE = IMAGE_BASE + "/recommend/hero.png";
     private static final String RECOMMEND_HERO_LINK = "/recommend/charms";
@@ -47,15 +46,11 @@ public class ProductService {
     private static final String CURATION_TITLE = "이달의 큐레이션";
     private static final String CURATION_IMAGE = IMAGE_BASE + "/recommend/curation.png";
     private static final String BESTSELLER_TITLE = "베스트셀러";
-    // 베스트셀러 노출 개수는 리포지토리 findTop10ByOrderByIdAsc의 Top10으로 제한한다
 
-    // 제품 상세 매장 확인 버튼 구성값 (프론트 mock과 동일)
     private static final String STORE_CHECK_LABEL = "구매 가능 매장 확인하기";
     private static final String STORE_CHECK_URL = "/story/stores";
 
-    // 시즌 페이지 구성값. 시즌 문자열은 시드의 product.season 값과 일치해야 한다 (현재 시즌: AW2026 - 스토리 도메인 시즌 코드와 반드시 동일 형식)
     private static final String SEASON_HERO_IMAGE_FORMAT = IMAGE_BASE + "/season/%s/hero.png";
-    // 어떤 시즌을 조회해도 어긋나지 않도록 시즌 중립 문구를 쓴다 (시즌별 카피가 확정되면 시즌→문구 맵으로 확장)
     private static final String SEASON_DESCRIPTION = "마이스터베어의 새로운 시즌을 만나보세요.";
 
     private final ProductRepository productRepository;
@@ -63,9 +58,6 @@ public class ProductService {
     private final OrderItemRepository orderItemRepository;
     private final StoreRepository storeRepository;
 
-    // 추천 페이지 한 방 조회. 히어로/여정/큐레이션은 고정 구성, 베스트셀러만 DB에서 채운다.
-    // 베스트셀러 기준 = 노출 순서(시드 id 순) - 시연 데이터에는 판매량 집계가 무의미해 채택한 기준.
-    // 정렬과 상한을 DB 쿼리에 적용해 결정론과 메모리 사용을 보장한다
     public RecommendPageResponse getRecommendPage() {
         List<ProductSummaryResponse> bestsellers = productRepository.findTop10ByOrderByIdAsc().stream()
                 .map(this::toSummary)
@@ -90,8 +82,6 @@ public class ProductService {
                 .build();
     }
 
-    // 제품 상세. 색상/사이즈 옵션은 같은 productGroupId 형제 제품에서 구성하고,
-    // 찜/구매 여부는 로그인 유저 기준으로 판단한다. 시즌 제품 상세 화면도 이 API를 함께 쓴다
     public ProductDetailResponse getProductDetail(Long userId, Long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(ProductErrorCode.PRODUCT_NOT_FOUND));
@@ -115,18 +105,14 @@ public class ProductService {
                 .storeUrl(STORE_CHECK_URL)
                 .detail(toDetailSection(product))
                 .isPurchased(isPurchased)
-                // 시즌 값이 있는 제품 = 시즌 한정 → 스토리 완주 후 구매 가능 정책
                 .requiresStory(product.getSeason() != null)
                 .build();
     }
 
-    // 등록(구매) 제품 목록 - 최근 등록 순. 날짜는 화면 표기 포맷 문자열로 완성해서 내려준다 (프론트 가공 불필요)
     public List<MyProductResponse> getMyProducts(Long userId) {
         List<OrderItem> orders = orderItemRepository.findByUserId(userId);
         Map<Long, Product> products = findProductsById(orders.stream().map(OrderItem::getProductId).toList());
 
-        // 등록일 = 수령 시점(없으면 구매 시점) - 상세 화면의 registeredAt과 동일 기준.
-        // 정렬도 같은 기준을 써서 목록에 표시되는 날짜가 항상 내림차순이 되게 한다 (정렬키≠표시값 불일치 방지)
         List<MyProductResponse> responses = orders.stream()
                 .sorted(java.util.Comparator.comparing(this::resolveRegisteredAt)
                         .thenComparing(OrderItem::getId)
@@ -145,7 +131,6 @@ public class ProductService {
         return responses;
     }
 
-    // 등록 제품 상세. 본인 구매 기록만 조회 가능(userId 대조). registeredAt은 수령 시점, 미수령이면 구매 시점으로 대체
     public MyProductDetailResponse getMyProductDetail(Long userId, Long orderItemId) {
         OrderItem order = orderItemRepository.findByIdAndUserId(orderItemId, userId)
                 .orElseThrow(() -> new CustomException(ProductErrorCode.ORDER_NOT_FOUND));
@@ -168,25 +153,21 @@ public class ProductService {
                 .build();
     }
 
-    // 등록일 기준: 수령 시점 우선, 없으면 구매 시점 (목록·상세 공통)
     private LocalDateTime resolveRegisteredAt(OrderItem order) {
         return order.getReceivedAt() != null ? order.getReceivedAt() : order.getOrderedAt();
     }
 
-    // N+1 방지를 위한 일괄 조회 (주문 목록 → 제품 맵)
     private Map<Long, Product> findProductsById(List<Long> productIds) {
         return productRepository.findAllById(productIds).stream()
                 .collect(Collectors.toMap(Product::getId, Function.identity()));
     }
 
-    // "2026.08.16" - 목록/이력의 날짜 표기 포맷
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
     private String formatDate(LocalDateTime dateTime) {
         return dateTime != null ? dateTime.format(DATE_FORMAT) : null;
     }
 
-    // "2026.08.16 pm.03:00" - 프론트 화면이 쓰는 날짜+시간 표기 포맷 (12시간제, am/pm 소문자)
     private String formatDateTime(LocalDateTime dateTime) {
         if (dateTime == null) {
             return null;
@@ -197,7 +178,7 @@ public class ProductService {
         return String.format("%s %s.%02d:%02d", dateTime.format(DATE_FORMAT), meridiem, hour12, dateTime.getMinute());
     }
 
-    // 시즌 제품 목록. 시즌 값이 잘못 와도(오타 등) 에러 대신 빈 목록으로 내려 화면이 깨지지 않게 한다 (시연 우선)
+    // 시즌 값이 잘못 와도 에러 대신 빈 목록으로 내려준다
     public SeasonProductListResponse getSeasonProducts(String season) {
         List<ProductSummaryResponse> products = productRepository.findBySeasonOrderByIdAsc(season).stream()
                 .map(this::toSummary)
@@ -211,7 +192,6 @@ public class ProductService {
                 .build();
     }
 
-    // 그룹이 없는 단독 제품은 자기 자신만 옵션으로 노출한다
     private List<Product> findGroupSiblings(Product product) {
         if (product.getProductGroupId() == null) {
             return List.of(product);
@@ -219,7 +199,6 @@ public class ProductService {
         return productRepository.findByProductGroupIdOrderByIdAsc(product.getProductGroupId());
     }
 
-    // 색상 옵션: 형제 중 색상이 처음 등장하는 제품만 노출 (같은 색의 사이즈 형제는 중복 제거)
     private List<ProductColorResponse> toColorOptions(List<Product> siblings) {
         List<ProductColorResponse> colors = new ArrayList<>();
         List<String> seen = new ArrayList<>();

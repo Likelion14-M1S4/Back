@@ -58,7 +58,6 @@ public class WishlistService {
                 .stream()
                 .collect(Collectors.toMap(Charm::getId, Function.identity()));
 
-        // 찜한 제품/참이 그사이 삭제됐을 수 있음 - 그런 항목은 목록에서 조용히 제외 (에러로 취급하지 않음)
         List<WishlistItemResponse> items = wishlists.stream()
                 .map(wishlist -> toWishlistItemResponse(wishlist, productsById, charmsById))
                 .filter(Objects::nonNull)
@@ -70,8 +69,6 @@ public class WishlistService {
                 .build();
     }
 
-    // productId, charmId 중 정확히 하나만 받아 이미 찜한 상태면 해제(삭제), 아니면 찜(생성)한다.
-    // 제품/참 상세의 하트 아이콘, 위시리스트 목록의 X 버튼이 이 메서드 하나를 공유한다.
     @Transactional
     public ToggleWishlistResultResponse toggleWishlist(Long userId, ToggleWishlistRequest request) {
         Long productId = request.getProductId();
@@ -118,9 +115,7 @@ public class WishlistService {
                 .build();
     }
 
-    // 기존 찜이 있으면 삭제(해제)하고 false, 없으면 새로 만들고(찜) true를 반환.
-    // 동시에 두 요청이 둘 다 "찜 없음"으로 보고 동시에 insert를 시도하면 유니크 제약 위반이 나는데,
-    // 이건 결과적으로 둘 다 "찜된 상태"를 원한 거라 에러 대신 true로 처리한다.
+    // 동시 요청으로 유니크 제약 위반이 나도 둘 다 찜을 원한 거라 에러 대신 true로 처리
     private boolean applyToggle(Optional<Wishlist> existing, Supplier<Wishlist> newWishlist) {
         if (existing.isPresent()) {
             wishlistRepository.delete(existing.get());
